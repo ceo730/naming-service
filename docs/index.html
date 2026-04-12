@@ -1,0 +1,1535 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>바른이름연구소 - AI 작명 서비스</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&family=Noto+Serif+KR:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
+<style>
+:root {
+  --primary: #1a237e;
+  --primary-light: #3949ab;
+  --accent: #c9a96e;
+  --accent-light: #e6d5a8;
+  --bg: #faf8f5;
+  --bg-card: #ffffff;
+  --text: #2c2c2c;
+  --text-light: #6b6b6b;
+  --border: #e8e4df;
+  --success: #2e7d32;
+  --error: #c62828;
+  --wood: #4caf50;
+  --fire: #f44336;
+  --earth: #ff9800;
+  --metal: #9e9e9e;
+  --water: #2196f3;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Noto Sans KR',sans-serif; background:var(--bg); color:var(--text); line-height:1.7; min-height:100vh; }
+.header { background:linear-gradient(135deg,var(--primary) 0%,#283593 100%); color:#fff; padding:2rem 0; text-align:center; box-shadow:0 4px 20px rgba(0,0,0,.15); }
+.header h1 { font-family:'Noto Serif KR',serif; font-size:2rem; font-weight:700; letter-spacing:4px; margin-bottom:.5rem; }
+.header p { color:var(--accent-light); font-size:.95rem; letter-spacing:2px; }
+.container { max-width:800px; margin:0 auto; padding:2rem 1.5rem; }
+.step-indicator { display:flex; justify-content:center; gap:.5rem; margin-bottom:2rem; flex-wrap:wrap; }
+.step-dot { width:36px; height:36px; border-radius:50%; background:var(--border); color:var(--text-light); display:flex; align-items:center; justify-content:center; font-size:.8rem; font-weight:600; transition:all .3s; }
+.step-dot.active { background:var(--primary); color:#fff; transform:scale(1.15); }
+.step-dot.completed { background:var(--accent); color:#fff; }
+.form-card { background:var(--bg-card); border-radius:16px; padding:2rem; box-shadow:0 2px 12px rgba(0,0,0,.06); margin-bottom:1.5rem; border:1px solid var(--border); }
+.form-card h2 { font-family:'Noto Serif KR',serif; font-size:1.3rem; color:var(--primary); margin-bottom:1.5rem; padding-bottom:.8rem; border-bottom:2px solid var(--accent-light); }
+.form-group { margin-bottom:1.2rem; }
+.form-group label { display:block; font-weight:500; margin-bottom:.4rem; color:var(--text); font-size:.9rem; }
+.form-group input,.form-group select,.form-group textarea { width:100%; padding:.7rem 1rem; border:1px solid var(--border); border-radius:8px; font-size:.95rem; font-family:inherit; transition:border-color .3s; background:#fff; }
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus { outline:none; border-color:var(--primary-light); box-shadow:0 0 0 3px rgba(26,35,126,.1); }
+.form-row { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+.btn { display:inline-flex; align-items:center; justify-content:center; padding:.8rem 2rem; border:none; border-radius:10px; font-size:1rem; font-weight:600; cursor:pointer; transition:all .3s; font-family:inherit; }
+.btn-primary { background:linear-gradient(135deg,var(--primary),var(--primary-light)); color:#fff; width:100%; }
+.btn-primary:hover { transform:translateY(-2px); box-shadow:0 4px 15px rgba(26,35,126,.3); }
+.btn-primary:disabled { opacity:.5; cursor:not-allowed; transform:none; }
+.btn-secondary { background:var(--accent); color:#fff; }
+.btn-outline { background:transparent; border:2px solid var(--primary); color:var(--primary); }
+.progress-container { text-align:center; padding:3rem 1rem; }
+.progress-bar-wrap { background:var(--border); border-radius:20px; height:12px; overflow:hidden; margin:1.5rem 0; }
+.progress-bar-fill { height:100%; background:linear-gradient(90deg,var(--primary),var(--accent)); border-radius:20px; transition:width .5s ease; }
+.progress-text { color:var(--text-light); font-size:.9rem; margin-top:.5rem; }
+.name-card { background:var(--bg-card); border-radius:16px; padding:1.8rem; margin-bottom:1.2rem; border:1px solid var(--border); box-shadow:0 2px 8px rgba(0,0,0,.04); transition:all .3s; }
+.name-card:hover { box-shadow:0 4px 20px rgba(0,0,0,.1); transform:translateY(-2px); }
+.name-card .name-hangul { font-family:'Noto Serif KR',serif; font-size:1.8rem; font-weight:700; color:var(--primary); }
+.name-card .name-hanja { color:var(--text-light); font-size:1rem; margin-top:.3rem; }
+.name-card .name-score { display:inline-block; background:var(--accent); color:#fff; padding:.2rem .8rem; border-radius:20px; font-size:.85rem; font-weight:600; margin-top:.5rem; }
+.ohaeng-badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:.75rem; font-weight:600; color:#fff; margin:2px; }
+.ohaeng-wood { background:var(--wood); }
+.ohaeng-fire { background:var(--fire); }
+.ohaeng-earth { background:var(--earth); }
+.ohaeng-metal { background:var(--metal); }
+.ohaeng-water { background:var(--water); }
+.saju-table { width:100%; border-collapse:collapse; margin:1rem 0; }
+.saju-table th { background:var(--primary); color:#fff; padding:.6rem; text-align:center; font-size:.85rem; }
+.saju-table td { padding:.6rem; text-align:center; border:1px solid var(--border); font-size:.95rem; }
+.report-section { background:var(--bg-card); border-radius:16px; padding:2rem; margin-bottom:1.5rem; border:1px solid var(--border); }
+.report-section h3 { font-family:'Noto Serif KR',serif; color:var(--primary); margin-bottom:1rem; font-size:1.2rem; }
+.report-section .prose { line-height:2; color:var(--text); font-size:.95rem; white-space:pre-wrap; }
+.loading-spinner { display:inline-block; width:40px; height:40px; border:4px solid var(--border); border-top:4px solid var(--primary); border-radius:50%; animation:spin 1s linear infinite; margin-bottom:1rem; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.error-msg { color:var(--error); background:#fff5f5; padding:1rem; border-radius:8px; margin:1rem 0; border:1px solid #fecdd3; }
+.info-grid { display:grid; grid-template-columns:auto 1fr; gap:.3rem 1rem; font-size:.9rem; margin:.8rem 0; }
+.info-grid .label { color:var(--text-light); font-weight:500; }
+.back-btn { background:none; border:none; color:var(--text-light); cursor:pointer; font-size:.9rem; margin-bottom:1rem; font-family:inherit; }
+.back-btn:hover { color:var(--primary); }
+@media(max-width:600px) {
+  .form-row { grid-template-columns:1fr; }
+  .container { padding:1rem; }
+  .header h1 { font-size:1.5rem; }
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="data/assets_b64.js"></script>
+<script>
+// ============================================================
+// PHASE 1: Saju Engine (ported from saju_engine.py)
+// ============================================================
+const CHEONGAN = ['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'];
+const CHEONGAN_KR = ['갑','을','병','정','무','기','경','신','임','계'];
+const CHEONGAN_OHAENG = ['木','木','火','火','土','土','金','金','水','水'];
+const CHEONGAN_EUMYANG = ['양','음','양','음','양','음','양','음','양','음'];
+const JIJI = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
+const JIJI_KR = ['자','축','인','묘','진','사','오','미','신','유','술','해'];
+const JIJI_OHAENG = ['水','土','木','木','土','火','火','土','金','金','土','水'];
+const JIJI_EUMYANG = ['양','음','양','음','양','음','양','음','양','음','양','음'];
+const JIJI_ANIMAL = ['쥐','소','호랑이','토끼','용','뱀','말','양','원숭이','닭','개','돼지'];
+const JIJI_JANGGAN = {
+  '子':['癸'],'丑':['己','癸','辛'],'寅':['甲','丙','戊'],'卯':['乙'],
+  '辰':['戊','乙','癸'],'巳':['丙','庚','戊'],'午':['丁','己'],'未':['己','丁','乙'],
+  '申':['庚','壬','戊'],'酉':['辛'],'戌':['戊','辛','丁'],'亥':['壬','甲']
+};
+const OHAENG_LIST = ['木','火','土','金','水'];
+const OHAENG_KR = {'木':'목','火':'화','土':'토','金':'금','水':'수'};
+const OHAENG_SANGSAENG = {'木':'火','火':'土','土':'金','金':'水','水':'木'};
+const OHAENG_SANGGEUK = {'木':'土','火':'金','土':'水','金':'木','水':'火'};
+const JIJI_CHUNG = {'子':'午','午':'子','丑':'未','未':'丑','寅':'申','申':'寅','卯':'酉','酉':'卯','辰':'戌','戌':'辰','巳':'亥','亥':'巳'};
+const JIJI_RELATED_HANJA = {
+  '子':['子','孑','孜','字','孝','孟','季','孫','學'],'午':['午','許','杵'],
+  '丑':['丑','紐'],'未':['未','味','妹','昧'],'寅':['寅','演','瀕'],
+  '申':['申','伸','紳','呻','神'],'卯':['卯','柳','貿'],'酉':['酉','酒','醉','配','醒'],
+  '辰':['辰','振','晨','辱'],'戌':['戌','成','城','誠','盛'],'巳':['巳','祀','包'],
+  '亥':['亥','核','該','骸']
+};
+const JIJI_HYEONG = {
+  '寅':['巳','申'],'巳':['寅','申'],'申':['寅','巳'],
+  '丑':['戌','未'],'戌':['丑','未'],'未':['丑','戌'],
+  '子':['卯'],'卯':['子'],'辰':['辰'],'午':['午'],'酉':['酉'],'亥':['亥']
+};
+const _JEOLGI_C = [
+  [2,3.87,4.6295],[3,5.63,6.3826],[4,4.81,5.5918],[5,5.52,6.318],
+  [6,5.678,6.5],[7,7.108,7.928],[8,7.5,8.35],[9,7.646,8.44],
+  [10,8.318,9.098],[11,7.438,8.218],[12,7.18,7.9],[1,5.4055,6.11]
+];
+
+function _calcJeolgiDay(year, solarMonth, c21, c20) {
+  const y = year % 100;
+  const c = year >= 2000 ? c21 : c20;
+  return Math.floor(c + 0.2422 * y - Math.floor(y / 4));
+}
+function getJeolgiDate(year, idx) {
+  const [sm, c21, c20] = _JEOLGI_C[idx];
+  return [sm, _calcJeolgiDay(year, sm, c21, c20)];
+}
+function calcJdn(year, month, day) {
+  const a = Math.floor((14 - month) / 12);
+  const y = year + 4800 - a;
+  const m = month + 12 * a - 3;
+  return day + Math.floor((153 * m + 2) / 5) + 365 * y + Math.floor(y / 4) - Math.floor(y / 100) + Math.floor(y / 400) - 32045;
+}
+function getSajuMonth(solarYear, solarMonth, solarDay) {
+  const [ipM, ipD] = getJeolgiDate(solarYear, 0);
+  let adjYear = solarYear;
+  if (solarMonth < ipM || (solarMonth === ipM && solarDay < ipD)) adjYear = solarYear - 1;
+  if (adjYear < solarYear) {
+    const [shM, shD] = getJeolgiDate(solarYear, 11);
+    if (solarMonth > shM || (solarMonth === shM && solarDay >= shD)) return 12;
+    return 11;
+  }
+  for (let i = 10; i >= 0; i--) {
+    const [jm, jd] = getJeolgiDate(adjYear, i);
+    if (solarMonth > jm || (solarMonth === jm && solarDay >= jd)) return i + 1;
+  }
+  return 12;
+}
+function getSajuYearStemBranch(sY, sM, sD) {
+  const [ipM, ipD] = getJeolgiDate(sY, 0);
+  if (sM < ipM || (sM === ipM && sD < ipD)) return sY - 1;
+  return sY;
+}
+function hourToBranchIndex(hour, minute) {
+  minute = minute || 0;
+  const t = hour * 60 + minute;
+  if (t >= 23*60 || t < 1*60) return 0;
+  if (t < 3*60) return 1; if (t < 5*60) return 2; if (t < 7*60) return 3;
+  if (t < 9*60) return 4; if (t < 11*60) return 5; if (t < 13*60) return 6;
+  if (t < 15*60) return 7; if (t < 17*60) return 8; if (t < 19*60) return 9;
+  if (t < 21*60) return 10; return 11;
+}
+function calculateSaju(birthYear, birthMonth, birthDay, birthHour, birthMinute) {
+  birthMinute = birthMinute || 0;
+  const sajuYear = getSajuYearStemBranch(birthYear, birthMonth, birthDay);
+  const yearGanjiIdx = ((sajuYear - 4) % 60 + 60) % 60;
+  const yearStemIdx = yearGanjiIdx % 10;
+  const yearBranchIdx = yearGanjiIdx % 12;
+  const sajuMonth = getSajuMonth(birthYear, birthMonth, birthDay);
+  const monthStemStart = ((yearStemIdx % 5) * 2 + 2) % 10;
+  const monthStemIdx = (monthStemStart + sajuMonth - 1) % 10;
+  const monthBranchIdx = (sajuMonth + 1) % 12;
+  const jdn = calcJdn(birthYear, birthMonth, birthDay);
+  const dayGanjiIdx = ((jdn - 2451545 + 54) % 60 + 60) % 60;
+  const dayStemIdx = dayGanjiIdx % 10;
+  const dayBranchIdx = dayGanjiIdx % 12;
+  const hasHour = birthHour != null && birthHour !== '' && birthHour !== '미상';
+  let hourBranchIdx = null, hourStemIdx = null;
+  if (hasHour) {
+    hourBranchIdx = hourToBranchIndex(parseInt(birthHour), birthMinute);
+    const hourStemStart = (dayStemIdx % 5) * 2;
+    hourStemIdx = (hourStemStart + hourBranchIdx) % 10;
+  }
+  function mkPillar(si, bi) {
+    return { stem:CHEONGAN[si], branch:JIJI[bi], stem_kr:CHEONGAN_KR[si], branch_kr:JIJI_KR[bi],
+      stem_ohaeng:CHEONGAN_OHAENG[si], branch_ohaeng:JIJI_OHAENG[bi],
+      stem_eumyang:CHEONGAN_EUMYANG[si], branch_eumyang:JIJI_EUMYANG[bi],
+      ganji:CHEONGAN[si]+JIJI[bi], ganji_kr:CHEONGAN_KR[si]+JIJI_KR[bi],
+      animal:JIJI_ANIMAL[bi] };
+  }
+  const result = {
+    year_pillar: mkPillar(yearStemIdx, yearBranchIdx),
+    month_pillar: mkPillar(monthStemIdx, monthBranchIdx),
+    day_pillar: mkPillar(dayStemIdx, dayBranchIdx),
+    hour_pillar: hasHour ? mkPillar(hourStemIdx, hourBranchIdx) : null,
+    day_stem_idx: dayStemIdx
+  };
+  const ohaengCount = {'木':0,'火':0,'土':0,'金':0,'水':0};
+  const eumyangCount = {'양':0,'음':0};
+  const pillars = ['year_pillar','month_pillar','day_pillar'];
+  if (hasHour) pillars.push('hour_pillar');
+  pillars.forEach(pn => {
+    const p = result[pn];
+    ohaengCount[p.stem_ohaeng]++;
+    ohaengCount[p.branch_ohaeng]++;
+    eumyangCount[p.stem_eumyang]++;
+    eumyangCount[p.branch_eumyang]++;
+  });
+  const jangganOhaeng = {'木':0,'火':0,'土':0,'金':0,'水':0};
+  pillars.forEach(pn => {
+    const p = result[pn];
+    (JIJI_JANGGAN[p.branch]||[]).forEach(jgStem => {
+      const jgIdx = CHEONGAN.indexOf(jgStem);
+      jangganOhaeng[CHEONGAN_OHAENG[jgIdx]]++;
+    });
+  });
+  const ilgan = CHEONGAN[dayStemIdx];
+  const ilganOhaeng = CHEONGAN_OHAENG[dayStemIdx];
+  const yongsinInfo = determineYongsin(ilganOhaeng, ohaengCount, jangganOhaeng);
+  result.ohaeng_analysis = {
+    count: ohaengCount, janggan_count: jangganOhaeng, eumyang_count: eumyangCount,
+    ilgan, ilgan_kr: CHEONGAN_KR[dayStemIdx], ilgan_ohaeng: ilganOhaeng,
+    ilgan_ohaeng_kr: OHAENG_KR[ilganOhaeng], yongsin: yongsinInfo
+  };
+  return result;
+}
+function determineYongsin(ilganOhaeng, ohaengCount, jangganCount) {
+  const sameElement = ilganOhaeng;
+  let generatingElement = null;
+  for (const [k, v] of Object.entries(OHAENG_SANGSAENG)) { if (v === ilganOhaeng) { generatingElement = k; break; } }
+  let supportScore = (ohaengCount[sameElement]||0) + (jangganCount[sameElement]||0);
+  if (generatingElement) supportScore += (ohaengCount[generatingElement]||0)*0.7 + (jangganCount[generatingElement]||0)*0.5;
+  const controlledElement = OHAENG_SANGSAENG[ilganOhaeng];
+  const controllingElement = OHAENG_SANGGEUK[ilganOhaeng];
+  let controlledBy = null;
+  for (const [k, v] of Object.entries(OHAENG_SANGGEUK)) { if (v === ilganOhaeng) { controlledBy = k; break; } }
+  let opposeScore = (ohaengCount[controlledElement]||0) + (ohaengCount[controllingElement]||0);
+  if (controlledBy) opposeScore += (ohaengCount[controlledBy]||0);
+  const total = Object.values(ohaengCount).reduce((a,b)=>a+b,0);
+  const isStrong = supportScore > total * 0.4;
+  const missing = OHAENG_LIST.filter(oh => ohaengCount[oh] === 0);
+  const weakest = [...OHAENG_LIST].sort((a,b) => (ohaengCount[a]+(jangganCount[a]||0)*0.5) - (ohaengCount[b]+(jangganCount[b]||0)*0.5));
+  let yongsin, huisin, description;
+  if (isStrong) {
+    yongsin = controlledElement; huisin = controllingElement;
+    description = '일간이 강하여 에너지를 분산시켜주는 오행이 필요합니다';
+  } else {
+    yongsin = sameElement; huisin = generatingElement;
+    description = '일간이 약하여 힘을 보태주는 오행이 필요합니다';
+  }
+  const neededOhaeng = [];
+  missing.forEach(m => { if (m === yongsin || m === huisin) neededOhaeng.unshift(m); else neededOhaeng.push(m); });
+  if (!neededOhaeng.includes(yongsin)) neededOhaeng.unshift(yongsin);
+  if (huisin && !neededOhaeng.includes(huisin)) neededOhaeng.splice(1, 0, huisin);
+  const needed3 = neededOhaeng.slice(0, 3);
+  return {
+    yongsin, yongsin_kr: OHAENG_KR[yongsin], huisin, huisin_kr: OHAENG_KR[huisin]||'',
+    is_strong: isStrong, strength_desc: isStrong ? '신강(身强)' : '신약(身弱)', description,
+    missing_ohaeng: missing, missing_ohaeng_kr: missing.map(m=>OHAENG_KR[m]),
+    needed_ohaeng: needed3, needed_ohaeng_kr: needed3.map(n=>OHAENG_KR[n]),
+    weakest: weakest.slice(0,2), weakest_kr: weakest.slice(0,2).map(w=>OHAENG_KR[w])
+  };
+}
+function checkChungConflict(dayBranch, hanjaList) {
+  if (!dayBranch || !JIJI_CHUNG[dayBranch]) return [];
+  const chungBranch = JIJI_CHUNG[dayBranch];
+  const conflictChars = new Set(JIJI_RELATED_HANJA[chungBranch] || [chungBranch]);
+  return hanjaList.filter(h => conflictChars.has(h)).map(h => `'${h}'은(는) 일주 ${dayBranch}와 충(沖)인 ${chungBranch} 관련 한자입니다`);
+}
+function checkHyeongConflict(dayBranch, hanjaList) {
+  if (!dayBranch || !JIJI_HYEONG[dayBranch]) return [];
+  const hyeongBranches = JIJI_HYEONG[dayBranch];
+  const warnings = [];
+  hanjaList.forEach(hanja => {
+    hyeongBranches.forEach(hb => {
+      const related = new Set(JIJI_RELATED_HANJA[hb] || [hb]);
+      if (related.has(hanja)) warnings.push(`'${hanja}'은(는) 일주 ${dayBranch}와 형(刑)인 ${hb} 관련 한자입니다`);
+    });
+  });
+  return warnings;
+}
+
+// 81수리 길흉 테이블
+const SURI_TABLE = {
+  1:['대길','만물 생성의 수로 부귀영화를 누리는 최길수'],2:['흉','분리 고독의 수'],3:['길','만물 발전의 수'],
+  4:['흉','파멸부정의 수'],5:['대길','복록장수의 수'],6:['대길','덕후계승의 수'],7:['길','독립독행의 수'],
+  8:['길','발전무궁의 수'],9:['흉','빈궁단명의 수'],10:['흉','만사공허의 수'],11:['대길','만물갱신의 수'],
+  12:['흉','박약무력의 수'],13:['대길','지모총달의 수'],14:['흉','파재고독의 수'],15:['대길','복덕원만의 수'],
+  16:['대길','덕망존대의 수'],17:['길','건달강건의 수'],18:['대길','발전무궁의 수'],19:['흉','고난수업의 수'],
+  20:['흉','허무공허의 수'],21:['대길','두령독립의 수'],22:['흉','중절좌절의 수'],23:['대길','대승발전의 수'],
+  24:['대길','입신출세의 수'],25:['길','안정건실의 수'],26:['흉','파란변동의 수'],27:['흉','고난중절의 수'],
+  28:['흉','파란만장의 수'],29:['대길','지혜활달의 수'],30:['흉','길흉반반의 수'],31:['대길','지도통솔의 수'],
+  32:['대길','순풍요행의 수'],33:['대길','승천봉일의 수'],35:['대길','태평성대의 수'],
+  37:['대길','인덕통달의 수'],38:['길','문예기예의 수'],39:['대길','부귀영화의 수'],
+  41:['대길','만사형통의 수'],45:['대길','순풍만범의 수'],47:['대길','출세개화의 수'],
+  48:['대길','지략겸비의 수'],52:['길','선견지명의 수'],57:['길','노력발전의 수'],
+  61:['길','명리쌍전의 수'],63:['길','순성발전의 수'],65:['대길','부귀장수의 수'],
+  67:['길','달성통달의 수'],68:['대길','발명발달의 수'],73:['길','안정평화의 수'],
+  75:['길','진퇴자여의 수'],81:['대길','만물회춘의 수']
+};
+for (let i = 1; i <= 81; i++) { if (!SURI_TABLE[i]) SURI_TABLE[i] = ['흉', i+'수리는 불안정한 수']; }
+
+function getSuriRating(number) {
+  let n = number % 81; if (n === 0) n = 81;
+  return SURI_TABLE[n] || ['흉','불안정한 수'];
+}
+function calculateSuriOhaeng(surnameStrokes, name1Strokes, name2Strokes) {
+  function strokesToOhaeng(n) {
+    const ld = n % 10;
+    if (ld===1||ld===2) return '木'; if (ld===3||ld===4) return '火';
+    if (ld===5||ld===6) return '土'; if (ld===7||ld===8) return '金'; return '水';
+  }
+  let won, hyeong, yi, jeong;
+  if (name2Strokes != null) {
+    won = surnameStrokes + name1Strokes; hyeong = name1Strokes + name2Strokes;
+    yi = surnameStrokes + name2Strokes; jeong = surnameStrokes + name1Strokes + name2Strokes;
+  } else {
+    won = surnameStrokes + name1Strokes; hyeong = name1Strokes + 1;
+    yi = surnameStrokes + 1; jeong = surnameStrokes + name1Strokes;
+  }
+  const r = {
+    won:{value:won,ohaeng:strokesToOhaeng(won),rating:getSuriRating(won)},
+    hyeong:{value:hyeong,ohaeng:strokesToOhaeng(hyeong),rating:getSuriRating(hyeong)},
+    yi:{value:yi,ohaeng:strokesToOhaeng(yi),rating:getSuriRating(yi)},
+    jeong:{value:jeong,ohaeng:strokesToOhaeng(jeong),rating:getSuriRating(jeong)}
+  };
+  let score = 0;
+  ['won','hyeong','yi','jeong'].forEach(k => {
+    const rt = r[k].rating[0];
+    score += rt==='대길'?25 : rt==='길'?18 : 5;
+  });
+  r.total_score = score;
+  r.grade = score>=90?'최상' : score>=70?'상' : score>=50?'중' : '하';
+  return r;
+}
+
+// ============================================================
+// PHASE 2: Name Generator Engine (ported from name_generator.py)
+// ============================================================
+const SURNAME_STROKES = {
+  '김':8,'이':7,'박':6,'최':12,'정':9,'강':11,'조':10,'윤':12,'장':11,'임':6,
+  '한':15,'오':4,'서':8,'신':9,'권':22,'황':12,'안':6,'송':7,'류':10,'유':10,
+  '전':5,'홍':10,'고':10,'문':4,'양':13,'손':10,'배':14,'백':6,'허':11,'남':9,
+  '심':13,'노':16,'하':3,'곽':11,'성':7,'차':6,'주':6,'우':6,'구':11,'민':5,
+  '나':7,'진':10,'지':6,'엄':20,'원':10,'천':4,'방':4,'공':4,'현':12,'함':12,
+  '변':16,'염':20,'석':5,'선':6,'설':11,'마':10,'길':6,'연':14,'위':9,'표':8,
+  '명':8,'기':12,'반':5,'왕':4,'금':8,'옥':5,'육':6,'인':2,'맹':8,'제':11,
+  '모':4,'탁':8,'국':11,'여':7,'도':12,'소':12,'추':11,'복':14,'태':4,'봉':18,
+  '피':5,'두':4,'감':14,'경':8,'뢰':13,'사':10,'승':12,'상':13,'어':14,'은':14
+};
+function getSurnameStrokes(s) { return SURNAME_STROKES[s] || 8; }
+
+const NAME_PATTERNS_BABY_MALE = [
+  ['시','우'],['하','준'],['도','윤'],['서','준'],['은','우'],['이','준'],['지','호'],['시','윤'],['주','원'],['하','율'],
+  ['지','안'],['건','우'],['현','우'],['유','준'],['민','준'],['은','찬'],['이','찬'],['지','원'],['수','호'],['태','윤'],
+  ['준','혁'],['승','현'],['도','현'],['예','준'],['연','우'],['시','현'],['규','민'],['정','우'],['윤','호'],['채','민'],
+  ['서','윤'],['준','서'],['지','한'],['우','진'],['현','준'],['시','준'],['도','준'],['하','진'],['재','윤'],['민','호'],
+  ['서','진'],['승','우'],['지','윤'],['유','찬'],['태','준'],['하','민'],['건','호'],['준','우'],['윤','서'],['현','서']
+];
+const NAME_PATTERNS_BABY_FEMALE = [
+  ['서','아'],['하','윤'],['지','유'],['서','윤'],['지','안'],['하','은'],['서','연'],['수','아'],['지','아'],['다','은'],
+  ['아','린'],['채','원'],['윤','서'],['예','린'],['소','율'],['나','은'],['하','린'],['시','은'],['유','나'],['이','서'],
+  ['다','인'],['예','나'],['지','윤'],['수','빈'],['민','서'],['채','은'],['소','윤'],['가','은'],['하','연'],['예','서'],
+  ['서','현'],['하','율'],['지','수'],['수','연'],['채','아'],['윤','아'],['소','은'],['예','은'],['나','윤'],['서','은'],
+  ['하','영'],['지','은'],['다','윤'],['수','현'],['민','아'],['예','원'],['소','현'],['채','린'],['유','진'],['시','아']
+];
+const NAME_PATTERNS_YOUNG_MALE = [
+  ['민','준'],['서','준'],['지','훈'],['현','우'],['승','민'],['도','현'],['준','영'],['지','성'],['태','현'],['성','민'],
+  ['재','혁'],['정','민'],['건','호'],['민','수'],['동','현'],['상','현'],['재','민'],['준','호'],['시','영'],['지','원'],
+  ['승','현'],['현','진'],['도','영'],['우','진'],['태','민'],['준','수'],['재','원'],['서','현'],['한','결'],['지','환']
+];
+const NAME_PATTERNS_YOUNG_FEMALE = [
+  ['수','진'],['지','연'],['민','지'],['예','진'],['서','영'],['하','나'],['유','진'],['수','빈'],['지','현'],['혜','원'],
+  ['소','영'],['은','지'],['민','서'],['유','나'],['채','원'],['지','은'],['서','현'],['예','원'],['다','영'],['지','수'],
+  ['소','연'],['수','현'],['민','영'],['하','영'],['예','지'],['윤','아'],['소','희'],['가','영'],['서','연'],['나','연']
+];
+const NAME_PATTERNS_MIDDLE_MALE = [
+  ['정','호'],['승','현'],['재','혁'],['도','현'],['현','수'],['태','호'],['우','성'],['지','환'],['민','혁'],['성','호'],
+  ['상','원'],['건','영'],['영','수'],['준','호'],['재','원'],['한','수'],['승','호'],['재','영'],['동','수'],['지','훈']
+];
+const NAME_PATTERNS_MIDDLE_FEMALE = [
+  ['수','현'],['지','연'],['은','영'],['서','영'],['혜','진'],['미','영'],['지','현'],['소','영'],['혜','원'],['수','진'],
+  ['은','수'],['민','정'],['수','연'],['유','진'],['하','영'],['예','진'],['서','연'],['지','수'],['나','영'],['채','원']
+];
+function getNamePatterns(gender, birthYear, requestType) {
+  if (requestType === '개명') {
+    if (birthYear >= 1990) return gender === '남' ? NAME_PATTERNS_YOUNG_MALE : NAME_PATTERNS_YOUNG_FEMALE;
+    return gender === '남' ? NAME_PATTERNS_MIDDLE_MALE : NAME_PATTERNS_MIDDLE_FEMALE;
+  }
+  if (birthYear >= 2015) return gender === '남' ? NAME_PATTERNS_BABY_MALE : NAME_PATTERNS_BABY_FEMALE;
+  if (birthYear >= 1990) return gender === '남' ? NAME_PATTERNS_YOUNG_MALE : NAME_PATTERNS_YOUNG_FEMALE;
+  return gender === '남' ? NAME_PATTERNS_MIDDLE_MALE : NAME_PATTERNS_MIDDLE_FEMALE;
+}
+
+const CHOSUNG = ['ㄱ','ㄲ','ㄴ','ㄷ','ㄸ','ㄹ','ㅁ','ㅂ','ㅃ','ㅅ','ㅆ','ㅇ','ㅈ','ㅉ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+const JUNGSUNG = ['ㅏ','ㅐ','ㅑ','ㅒ','ㅓ','ㅔ','ㅕ','ㅖ','ㅗ','ㅘ','ㅙ','ㅚ','ㅛ','ㅜ','ㅝ','ㅞ','ㅟ','ㅠ','ㅡ','ㅢ','ㅣ'];
+const JONGSUNG_ARR = ['','ㄱ','ㄲ','ㄳ','ㄴ','ㄵ','ㄶ','ㄷ','ㄹ','ㄺ','ㄻ','ㄼ','ㄽ','ㄾ','ㄿ','ㅀ','ㅁ','ㅂ','ㅄ','ㅅ','ㅆ','ㅇ','ㅈ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+const CHOSUNG_OHAENG = {'ㄱ':'木','ㅋ':'木','ㄲ':'木','ㄴ':'火','ㄷ':'火','ㅌ':'火','ㄹ':'火','ㄸ':'火','ㅇ':'土','ㅎ':'土','ㅅ':'金','ㅈ':'金','ㅊ':'金','ㅆ':'金','ㅉ':'金','ㅁ':'水','ㅂ':'水','ㅍ':'水','ㅃ':'水'};
+const YANG_VOWELS = new Set(['ㅏ','ㅗ','ㅑ','ㅛ','ㅘ','ㅙ','ㅚ']);
+const EUM_VOWELS = new Set(['ㅓ','ㅜ','ㅕ','ㅠ','ㅝ','ㅞ','ㅟ']);
+const OHAENG_SANGSAENG_SET = new Set(['木火','火土','土金','金水','水木']);
+const OHAENG_SANGGEUK_SET = new Set(['木金','金木','木土','土木','火水','水火','火金','金火','土水','水土']);
+
+function decompose(ch) {
+  const code = ch.charCodeAt(0) - 0xAC00;
+  if (code < 0 || code > 11171) return null;
+  return [CHOSUNG[Math.floor(code/(21*28))], JUNGSUNG[Math.floor((code%(21*28))/28)], JONGSUNG_ARR[code%28]];
+}
+function getVowelType(v) { if (YANG_VOWELS.has(v)) return '양'; if (EUM_VOWELS.has(v)) return '음'; return '중'; }
+function getChosungOhaeng(ch) { const d = decompose(ch); return d ? (CHOSUNG_OHAENG[d[0]]||'土') : '土'; }
+const COMPOUND_JONGSUNG_FIRST = {'ㄳ':'ㄱ','ㄵ':'ㄴ','ㄶ':'ㄴ','ㄺ':'ㄹ','ㄻ':'ㄹ','ㄼ':'ㄹ','ㄽ':'ㄹ','ㄾ':'ㄹ','ㄿ':'ㄹ','ㅀ':'ㄹ','ㅄ':'ㅂ'};
+function getJongsungOhaeng(ch) {
+  const d = decompose(ch); if (!d || !d[2]) return null;
+  const j = d[2];
+  if (CHOSUNG_OHAENG[j]) return CHOSUNG_OHAENG[j];
+  const f = COMPOUND_JONGSUNG_FIRST[j]; return f ? (CHOSUNG_OHAENG[f]||'土') : '土';
+}
+function evaluatePhonetics(surname, nameChars) {
+  const full = surname + nameChars.join('');
+  const dec = [...full].map(decompose).filter(Boolean);
+  if (!dec.length) return [50, '분석 불가'];
+  let score = 70; const details = [];
+  const vt = dec.map(d => getVowelType(d[1]));
+  const yc = vt.filter(v=>v==='양').length, ec = vt.filter(v=>v==='음').length;
+  if (yc>0 && ec>0 && Math.abs(yc-ec)<=1) { score+=10; details.push('음양 모음 조화 우수'); }
+  else if ((yc>0&&ec===0)||(ec>0&&yc===0)) { score+=5; details.push('모음 통일감'); }
+  const chos = dec.map(d=>d[0]);
+  if (new Set(chos).size === chos.length) { score+=10; details.push('초성 모두 다름'); }
+  if (chos.length>1 && chos[0]===chos[1]) { score-=10; details.push('성-이름 초성 동일'); }
+  for (let i=0;i<dec.length-1;i++) {
+    if (dec[i][2] && dec[i+1][0]==='ㅇ') score+=3;
+    else if (dec[i][2] && dec[i][2]===dec[i+1][0]) score-=5;
+  }
+  const jongs = dec.map(d=>!!d[2]);
+  if (jongs.length>=3) {
+    if ((jongs[0]&&!jongs[1]&&jongs[2])||(!jongs[0]&&jongs[1]&&!jongs[2])) score+=5;
+    if (jongs[0]&&jongs[1]&&jongs[2]) score-=5;
+  }
+  return [Math.max(0,Math.min(100,score)), details.join('; ')||'표준적 발음'];
+}
+function _evalOhaengChain(ohaengs) {
+  let score = 60; const details = []; const ps = [];
+  for (let i=0;i<ohaengs.length-1;i++) {
+    const a=ohaengs[i], b=ohaengs[i+1], pair=a+b, rev=b+a;
+    if (OHAENG_SANGSAENG_SET.has(pair)&&!OHAENG_SANGSAENG_SET.has(rev)) { ps.push(20); details.push(a+'→'+b+' 상생'); }
+    else if (OHAENG_SANGSAENG_SET.has(rev)&&!OHAENG_SANGSAENG_SET.has(pair)) { ps.push(10); details.push(a+'→'+b+' 역생'); }
+    else if (a===b) { ps.push(5); details.push(a+'='+b+' 비화'); }
+    else if (OHAENG_SANGGEUK_SET.has(pair)) { ps.push(-20); details.push(a+'↔'+b+' 상극'); }
+    else ps.push(0);
+  }
+  score += ps.reduce((a,b)=>a+b,0);
+  if (ps.length>=2 && ps.every(p=>p===20)) { score+=10; details.push('완벽 상생 흐름'); }
+  return [Math.max(0,Math.min(100,score)), details];
+}
+function evaluateEumryeongOhaeng(surname, nameChars) {
+  const nameOhs = nameChars.map(getChosungOhaeng);
+  const choOh = getChosungOhaeng(surname);
+  const choChain = [choOh, ...nameOhs];
+  const [choScore, choDetails] = _evalOhaengChain(choChain);
+  const jongOh = getJongsungOhaeng(surname);
+  if (jongOh && jongOh !== choOh) {
+    const jongChain = [jongOh, ...nameOhs];
+    const [jongScore, jongDetails] = _evalOhaengChain(jongChain);
+    if (jongScore > choScore) {
+      const flow = jongChain.join('→');
+      return [jongScore, flow+' (종성경로: '+jongDetails.join('; ')+')', flow];
+    }
+  }
+  const flow = choChain.join('→');
+  return [choScore, flow+(choDetails.length?' ('+choDetails.join('; ')+')':''), flow];
+}
+
+const SURNAME_JAWON_OHAENG = {
+  '김':'金','이':'木','박':'木','최':'土','정':'土','강':'土','조':'火','윤':'火','장':'火','임':'木',
+  '한':'土','오':'土','서':'金','신':'金','홍':'水','권':'木','황':'土','안':'土','송':'木','류':'木',
+  '유':'水','전':'金','고':'木','문':'火','양':'木','손':'金','배':'火','백':'金','허':'土','남':'火',
+  '심':'水','노':'火','하':'水','곽':'土','성':'火','차':'火','주':'火','우':'土','구':'金','민':'水',
+  '나':'火','진':'土','지':'土','엄':'土','원':'水','천':'金','방':'水','공':'木','현':'水','함':'水',
+  '변':'水','염':'火','석':'金','선':'金','설':'金','마':'水','길':'土','연':'火','위':'土','표':'水',
+  '명':'火','기':'木','반':'金','왕':'土','금':'金','옥':'土','육':'토','인':'木','맹':'水','제':'火',
+  '모':'水','탁':'水','국':'木','여':'火','도':'土','소':'金','추':'金','복':'水','태':'火','봉':'水',
+  '피':'水','두':'火','감':'水','경':'木','뢰':'火','사':'金','승':'火','상':'金','어':'水','은':'金'
+};
+function getSurnameJawonOhaeng(s) { return SURNAME_JAWON_OHAENG[s] || getChosungOhaeng(s); }
+
+function evaluateJawonOhaengFlow(surname, nameCharsInfo) {
+  const surnameJawon = getSurnameJawonOhaeng(surname);
+  const ohaengs = [surnameJawon];
+  nameCharsInfo.forEach(c => ohaengs.push(c.jawon_ohaeng || c.ohaeng || '土'));
+  const [score, details] = _evalOhaengChain(ohaengs);
+  const flow = ohaengs.join('→');
+  return [score, flow+(details.length?' ('+details.join('; ')+')':''), flow];
+}
+function evaluateEumyangStrokes(surnameStrokes, nameChars) {
+  const strokes = [surnameStrokes, ...nameChars.map(c=>c.strokes)];
+  const ey = strokes.map(s => s%2===1?'양':'음');
+  if (ey.length < 2) return [0, ey];
+  const alt = ey.every((v,i) => i===0 || v!==ey[i-1]);
+  const same = ey.every(v => v===ey[0]);
+  if (alt) return [5, ey];
+  if (same) return [-5, ey];
+  return [0, ey];
+}
+
+const NEGATIVE_MEANINGS = ['다할','마칠','그칠','죽','어두울','슬플','근심','시들','무너','떨어','빠질','끊을','망할','나무이름','풀이름','고을이름','물이름','산이름','별이름','짐승','벌레','제사이름','병들','아플','더러울','가난','천할','미칠'];
+const POSITIVE_MEANINGS = ['밝','빛','맑','아름','클','넓','높','슬기','지혜','어질','바를','글','배울','도울','다스릴','이을','빼어날','수풀','우러를','기를','뛰어날','고울','편안','굳셀','빛날','은혜','상서','이룰','재주','밝힐','공경','기쁨','풍성','새벽','옳을','곧을','깊을','넉넉','후할','도탑','젖을','윤택','구슬','보배','옥','붓','노래','시','문장'];
+const WELL_KNOWN_HANJA = {
+  '준':['俊','浚','峻','駿'],'현':['賢','炫','玹','鉉','絃','顯'],'민':['敏','旻','珉','玟','民'],
+  '서':['瑞','書','序','徐','敍'],'우':['宇','佑','祐','羽','遇'],'진':['振','晉','眞','珍','辰'],
+  '시':['時','施','詩','始','是'],'도':['道','度','燾'],'윤':['潤','允','倫','胤','綸'],
+  '재':['載','在','才','宰'],'한':['翰','漢','瀚','韓'],'호':['浩','皓','豪','鎬','昊'],
+  '태':['泰','太','兌','台'],'영':['映','泳','永','瑛','英'],'수':['秀','修','洙','秀','壽'],
+  '원':['源','遠','院','瑗','園'],'석':['碩','錫','晳','奭','石'],'지':['智','志','知','之','芝'],
+  '건':['健','建','乾'],'승':['承','升','昇','勝'],'혁':['赫','革','奕','爀'],
+  '찬':['燦','粲','璨','讚'],'연':['然','延','淵','妍','衍'],'규':['奎','圭','揆','珪'],
+  '하':['夏','河','荷','賀','霞'],'은':['恩','垠','殷','銀'],'유':['裕','瑜','柔','由','唯'],
+  '아':['雅','娥','峨','亞'],'예':['藝','禮','睿','叡','譽'],'소':['素','昭','紹','韶','邵'],
+  '다':['多'],'채':['彩','采','寀','蔡'],'나':['娜','那','羅'],'린':['璘','潾','粼'],
+  '경':['景','慶','京','敬','卿'],'혜':['慧','惠','蕙'],'보':['輔','普','保','甫'],
+  '율':['律','栗','聿'],'빈':['彬','斌','賓','濱'],'가':['嘉','佳','珂'],
+  '세':['世','歲','細'],'정':['正','靜','晶','廷','貞'],'성':['成','誠','星','聖'],
+  '동':['棟','東','洞'],'상':['尙','相','祥','翔'],'인':['仁','寅','印','因'],
+  '희':['熙','熹','禧','曦'],'훈':['勳','薰','訓'],'환':['桓','煥','歡','宦'],
+  '결':['潔','決'],'안':['安','晏','按']
+};
+const MULTI_READING_HANJA = {
+  '令':['영','령'],'樂':['악','낙','요','락'],'率':['솔','율','률'],'易':['이','역'],
+  '切':['절','체'],'更':['경','갱'],'降':['강','항'],'數':['수','삭'],'省':['성','생'],
+  '車':['차','거'],'說':['설','세','열'],'惡':['악','오'],'度':['도','탁'],
+  '參':['참','삼'],'行':['행','항'],'便':['편','변'],'復':['복','부'],
+  '相':['상','서'],'見':['견','현'],'長':['장','창']
+};
+
+// Global data (loaded async)
+let HANJA_DB = [];
+let BULYONG_SET = new Set();
+let HANGUL_INDEX = new Map(); // Map<hangul, hanja[]>
+
+function buildHangulIndex() {
+  HANGUL_INDEX = new Map();
+  HANJA_DB.forEach(entry => {
+    const readings = entry.g.split(',').map(r => r.trim());
+    readings.forEach(r => {
+      if (!HANGUL_INDEX.has(r)) HANGUL_INDEX.set(r, []);
+      HANGUL_INDEX.get(r).push(entry);
+    });
+  });
+}
+
+function findHanjaForReading(readingKr, ohaengList, minStrokes, maxStrokes) {
+  minStrokes = minStrokes || 3; maxStrokes = maxStrokes || 20;
+  let pool = HANGUL_INDEX.get(readingKr) || [];
+  const candidates = [];
+  pool.forEach(entry => {
+    if (BULYONG_SET.has(entry.h)) return;
+    if (entry.s < minStrokes || entry.s > maxStrokes) return;
+    if (!entry.m || entry.m === '') return;
+    if (ohaengList && ohaengList.length > 0 && !ohaengList.includes(entry.o)) return;
+    if (NEGATIVE_MEANINGS.some(neg => entry.m.includes(neg))) return;
+    let score = 30;
+    const wk = WELL_KNOWN_HANJA[readingKr] || [];
+    if (wk.includes(entry.h)) score += 50;
+    const posCount = POSITIVE_MEANINGS.filter(kw => entry.m.includes(kw)).length;
+    score += Math.min(posCount * 12, 30);
+    if (entry.s >= 6 && entry.s <= 14) score += 10;
+    else if ((entry.s >= 4 && entry.s <= 5) || (entry.s >= 15 && entry.s <= 16)) score += 5;
+    else if (entry.s > 20) score -= 10;
+    if (entry.m.length >= 4) score += 5;
+    let multiWarn = null;
+    if (MULTI_READING_HANJA[entry.h]) multiWarn = entry.h + '은(는) 다음자로 ' + MULTI_READING_HANJA[entry.h].join('/') + '로 읽힐 수 있습니다';
+    candidates.push({
+      hanja: entry.h, hangul: readingKr, meaning: entry.m, strokes: entry.s,
+      ohaeng: entry.o, jawon_ohaeng: entry.j || entry.o,
+      score: Math.max(1, score), multi_reading_warning: multiWarn
+    });
+  });
+  candidates.sort((a,b) => b.score - a.score);
+  return candidates;
+}
+
+const _hanjaCache = new Map();
+function getBestHanja(readingKr, ohaengList) {
+  const key = readingKr + '|' + (ohaengList||[]).join(',');
+  if (!_hanjaCache.has(key)) _hanjaCache.set(key, findHanjaForReading(readingKr, ohaengList));
+  return _hanjaCache.get(key);
+}
+
+function sortPatternsByEumryeong(patterns, surname) {
+  const surChoOh = getChosungOhaeng(surname);
+  const surJongOh = getJongsungOhaeng(surname);
+  function pairScore(a, b) {
+    const p = a+b, r = b+a;
+    if (OHAENG_SANGSAENG_SET.has(p)) return 20;
+    if (OHAENG_SANGSAENG_SET.has(r)) return 10;
+    if (a===b) return 5;
+    if (OHAENG_SANGGEUK_SET.has(p)) return -20;
+    return 0;
+  }
+  function patScore(pat) {
+    const r1Oh = getChosungOhaeng(pat[0]), r2Oh = getChosungOhaeng(pat[1]);
+    let cs = pairScore(surChoOh, r1Oh) + pairScore(r1Oh, r2Oh);
+    if (surJongOh && surJongOh !== surChoOh) {
+      const js = pairScore(surJongOh, r1Oh) + pairScore(r1Oh, r2Oh);
+      return Math.max(cs, js);
+    }
+    return cs;
+  }
+  const scored = patterns.map(p => [p, patScore(p)]);
+  // shuffle within same score
+  for (let i = scored.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [scored[i], scored[j]] = [scored[j], scored[i]];
+  }
+  scored.sort((a,b) => b[1] - a[1]);
+  return scored.map(s => s[0]);
+}
+
+function _buildCandidate(surname, chars, suri, phScore, phDetail, total,
+  eumryeongScore, eumryeongDetail, eumryeongFlow,
+  jawonScore, jawonDetail, jawonFlow, chungWarnings, hyeongWarnings, eyPattern) {
+  const hangulName = surname + chars.map(c=>c.hangul).join('');
+  const multiWarnings = chars.map(c=>c.multi_reading_warning).filter(Boolean);
+  return {
+    hangul: hangulName, hanja: chars.map(c=>c.hanja).join(' '), hanja_full: hangulName,
+    chars, suri, phonetic_score: phScore, phonetic_detail: phDetail, total_score: total,
+    ohaeng_composition: chars.map(c=>c.ohaeng).join('+'),
+    eumryeong_score: eumryeongScore||0, eumryeong_detail: eumryeongDetail||'',
+    eumryeong_flow: eumryeongFlow||'', jawon_score: jawonScore||0,
+    jawon_detail: jawonDetail||'', jawon_flow: jawonFlow||'',
+    chung_warnings: chungWarnings||[], hyeong_warnings: hyeongWarnings||[],
+    eumyang_strokes: eyPattern||[], multi_reading_warnings: multiWarnings
+  };
+}
+
+function _selectDiverse(candidates, count) {
+  const selected = [];
+  const usedNames = new Set(), usedR1 = new Set(), usedR2 = new Set(), usedSets = [];
+  function charsOverlap(chars) {
+    const cs = new Set(chars.map(c=>c.hangul));
+    return usedSets.some(ps => cs.size===ps.size && [...cs].every(c=>ps.has(c)));
+  }
+  // Pass 1
+  for (const c of candidates) {
+    if (selected.length >= count) break;
+    const r1=c.chars[0].hangul, r2=c.chars.length>1?c.chars[1].hangul:'';
+    if (usedNames.has(c.hangul)||usedR1.has(r1)||(r2&&usedR2.has(r2))||charsOverlap(c.chars)) continue;
+    selected.push(c); usedNames.add(c.hangul); usedR1.add(r1);
+    if (r2) usedR2.add(r2); usedSets.push(new Set(c.chars.map(x=>x.hangul)));
+  }
+  // Pass 2
+  if (selected.length < count) {
+    for (const c of candidates) {
+      if (selected.length >= count) break;
+      const r2=c.chars.length>1?c.chars[1].hangul:'';
+      if (usedNames.has(c.hangul)||(r2&&usedR2.has(r2))||charsOverlap(c.chars)) continue;
+      selected.push(c); usedNames.add(c.hangul);
+      if (r2) usedR2.add(r2); usedSets.push(new Set(c.chars.map(x=>x.hangul)));
+    }
+  }
+  // Pass 3
+  if (selected.length < count) {
+    for (const c of candidates) {
+      if (selected.length >= count) break;
+      if (!usedNames.has(c.hangul)) { selected.push(c); usedNames.add(c.hangul); }
+    }
+  }
+  return selected;
+}
+
+function generateNames(surname, gender, sajuResult, preferences, count) {
+  count = count || 3;
+  preferences = preferences || {};
+  _hanjaCache.clear();
+  const oa = sajuResult.ohaeng_analysis;
+  const needed = oa.yongsin.needed_ohaeng;
+  const surnameStrokes = getSurnameStrokes(surname);
+  const birthYear = preferences.birth_year || 2024;
+  const requestType = preferences.request_type || '신생아 작명';
+  const nameLength = parseInt(preferences.name_length || 2);
+  const patterns = getNamePatterns(gender, birthYear, requestType);
+  let ohaengCombos;
+  if (needed.length >= 2) {
+    ohaengCombos = [
+      [[needed[0]], [needed[1]], true], [[needed[1]], [needed[0]], true],
+      [[needed[0]], [needed[0]], true], [needed.slice(0,2), needed.slice(0,2), true],
+      [[needed[0]], null, false], [null, [needed[0]], false], [null, null, false]
+    ];
+  } else if (needed.length === 1) {
+    ohaengCombos = [
+      [[needed[0]], [needed[0]], true], [[needed[0]], null, false],
+      [null, [needed[0]], false], [null, null, false]
+    ];
+  } else {
+    ohaengCombos = [[null, null, false]];
+  }
+  const dayBranch = (sajuResult.day_pillar||{}).branch || '';
+  const nameCandidates = [];
+  const sortedPatterns = sortPatternsByEumryeong(patterns, surname);
+
+  for (const [r1, r2raw] of sortedPatterns) {
+    const r2 = nameLength === 1 ? null : r2raw;
+    for (const combo of ohaengCombos) {
+      const [oh1, oh2, isStrict] = combo;
+      const h1List = oh1 ? getBestHanja(r1, oh1) : findHanjaForReading(r1);
+      if (!h1List.length) continue;
+      if (nameLength === 1) {
+        for (const h1 of h1List.slice(0,5)) {
+          const suri = calculateSuriOhaeng(surnameStrokes, h1.strokes);
+          if (suri.total_score < 50) continue;
+          const [phS, phD] = evaluatePhonetics(surname, [h1.hangul]);
+          const [erS, erD, erF] = evaluateEumryeongOhaeng(surname, [h1.hangul]);
+          const ohBonus = (oh1 && oh1.includes(h1.ohaeng)) ? 8 : 0;
+          const cw = checkChungConflict(dayBranch, [h1.hanja]);
+          const hw = checkHyeongConflict(dayBranch, [h1.hanja]);
+          const [eyB, eyP] = evaluateEumyangStrokes(surnameStrokes, [h1]);
+          const total = h1.score*0.3 + suri.total_score*0.25 + phS*0.20 + erS*0.25 + ohBonus - 15*cw.length - 10*hw.length + eyB;
+          nameCandidates.push(_buildCandidate(surname,[h1],suri,phS,phD,total,erS,erD,erF,0,'','',cw,hw,eyP));
+        }
+        continue;
+      }
+      const h2List = oh2 ? getBestHanja(r2, oh2) : findHanjaForReading(r2);
+      if (!h2List.length) continue;
+      for (const h1 of h1List.slice(0,5)) {
+        for (const h2 of h2List.slice(0,5)) {
+          if (h1.hanja === h2.hanja) continue;
+          const suri = calculateSuriOhaeng(surnameStrokes, h1.strokes, h2.strokes);
+          if (suri.total_score < 50) continue;
+          const [phS, phD] = evaluatePhonetics(surname, [h1.hangul, h2.hangul]);
+          if (phS < 60) continue;
+          const [erS, erD, erF] = evaluateEumryeongOhaeng(surname, [h1.hangul, h2.hangul]);
+          const [jwS, jwD, jwF] = evaluateJawonOhaengFlow(surname, [h1, h2]);
+          const cw = checkChungConflict(dayBranch, [h1.hanja, h2.hanja]);
+          const hw = checkHyeongConflict(dayBranch, [h1.hanja, h2.hanja]);
+          const [eyB, eyP] = evaluateEumyangStrokes(surnameStrokes, [h1, h2]);
+          let ohBonus = 0;
+          if (needed.length) { if (needed.includes(h1.ohaeng)) ohBonus+=5; if (needed.includes(h2.ohaeng)) ohBonus+=5; }
+          const total = h1.score*0.15 + h2.score*0.15 + suri.total_score*0.20 + phS*0.15 + erS*0.20 + jwS*0.10 + ohBonus - 15*cw.length - 10*hw.length + eyB;
+          nameCandidates.push(_buildCandidate(surname,[h1,h2],suri,phS,phD,total,erS,erD,erF,jwS,jwD,jwF,cw,hw,eyP));
+        }
+      }
+    }
+  }
+  nameCandidates.sort((a,b) => b.total_score - a.total_score);
+  const selected = _selectDiverse(nameCandidates, count);
+  selected.forEach((name, i) => {
+    name.rank = i + 1;
+    const full = surname + name.chars.map(c=>c.hangul).join('');
+    name.eumyang = [...full].map(ch => { const d = decompose(ch); return d ? getVowelType(d[1]) : '중'; });
+    name.meaning_summary = name.chars.map(c => c.hanja+'('+c.hangul+'): '+c.meaning).join(' / ');
+  });
+  return selected;
+}
+
+// ============================================================
+// PHASE 3: Report Generator (ported from report_generator.py)
+// ============================================================
+const REPORT_SYSTEM_PROMPT = `당신은 25년 경력의 대한민국 최고 작명 전문가이자 명리학 석학입니다. 수천 가문의 이름을 지어왔고, 사주명리학·음성학·성명학에 대한 깊은 학문적 소양과 현장 경험을 겸비하고 있습니다.
+
+【절대 준수 사항 — 이 규칙을 어기면 보고서 전체가 무효입니다】
+
+첫째, 줄글(산문) 형식으로 작성하되, 각 문단 앞에 반드시 소제목을 붙이십시오. 소제목은 **소제목** 형식(별표 두 개로 감싸기)으로 작성하고, 바로 다음 줄부터 해당 내용을 줄글 문단으로 서술하십시오. 소제목은 짧고 담백한 명사구로 쓰십시오. 한 문단은 최소 4~6문장으로 풍성하게 구성하십시오.
+
+둘째, 다음 형식은 절대 사용하지 마십시오: bullet point(-, *, •), 번호 목록(1. 2. 3.), 마크다운 헤더(##, ###), 이모지, 표, 코드블록. 소제목은 오직 **소제목** 형식만 허용됩니다.
+
+셋째, 25년 경력의 노련한 작명 전문가로서 따뜻하면서도 권위 있는 어조로 쓰십시오. 고객에게 직접 말씀드리는 느낌으로, 존댓말을 사용하되 경험에서 우러나오는 확신이 자연스럽게 묻어나게 쓰십시오.
+
+넷째, 추상적이고 뻔한 표현 대신 구체적이고 실질적인 분석을 풍부하게 서술하십시오.`;
+
+function getCallDesignation(formData) {
+  const birthDate = formData.birth_date || '';
+  const requestType = formData.request_type || '신생아 작명';
+  const currentName = formData.current_name || '';
+  const surname = formData.surname || '';
+  if (birthDate) {
+    try {
+      const birthYear = parseInt(birthDate.split('-')[0]);
+      const age = new Date().getFullYear() - birthYear;
+      if (age < 10) return '우리 아이';
+      if (currentName) return currentName + '님';
+      return surname + '씨';
+    } catch(e) {}
+  }
+  if (requestType.includes('개명') && currentName) return currentName + '님';
+  return '우리 아이';
+}
+
+function buildSajuContext(sajuResult, formData) {
+  const oa = sajuResult.ohaeng_analysis;
+  const y = oa.yongsin;
+  const pillars = [['year_pillar','년주'],['month_pillar','월주'],['day_pillar','일주'],['hour_pillar','시주']];
+  const pillarLines = pillars.map(([k,l]) => {
+    const p = sajuResult[k];
+    return p ? `${l}: ${p.ganji}(${p.ganji_kr}) - 천간오행:${p.stem_ohaeng} 지지오행:${p.branch_ohaeng}` : `${l}: 미상`;
+  });
+  return `[대상자 정보]
+성별: ${formData.gender||'미상'}
+생년월일: ${formData.birth_date||'미상'} (양력)
+출생시간: ${formData.birth_time||'미상'}
+성씨: ${formData.surname||'미상'}
+
+[사주팔자]
+${pillarLines.join('\n')}
+
+[오행 분포]
+木(목): ${oa.count['木']}개 / 火(화): ${oa.count['火']}개 / 土(토): ${oa.count['土']}개 / 金(금): ${oa.count['金']}개 / 水(수): ${oa.count['水']}개
+
+[일간] ${oa.ilgan}(${oa.ilgan_kr}) - ${oa.ilgan_ohaeng}(${oa.ilgan_ohaeng_kr}) | 강약: ${y.strength_desc}
+[용신] ${y.yongsin}(${y.yongsin_kr}) | [희신] ${y.huisin||''}(${y.huisin_kr||''})
+[부족오행] ${y.missing_ohaeng.map((m,i)=>m+'('+y.missing_ohaeng_kr[i]+')').join(', ')}
+
+[고객 요청]
+신청유형: ${formData.request_type||'신생아 작명'}
+중요 고려사항: ${formData.considerations||'없음'}
+원하는 이미지: ${formData.desired_image||'없음'}
+피하고 싶은 느낌: ${formData.avoid_feeling||'없음'}`;
+}
+
+function buildNameContext(nameInfo, index) {
+  const chars = nameInfo.chars.map(c => `  ${c.hanja}(${c.hangul}): 뜻=${c.meaning}, 획수=${c.strokes}, 오행=${c.ohaeng}, 자원오행=${c.jawon_ohaeng||c.ohaeng}`).join('\n');
+  const s = nameInfo.suri;
+  return `[후보 이름 ${index}]
+한글: ${nameInfo.hangul}
+한자: ${nameInfo.chars.map(c=>c.hanja).join(' ')}
+
+[한자 상세]
+${chars}
+
+[오행 구성] ${nameInfo.ohaeng_composition}
+[음양 구성] ${(nameInfo.eumyang||[]).join(' ')}
+[음양 획수] ${(nameInfo.eumyang_strokes||[]).join('-')}
+
+[음령 오행] ${nameInfo.eumryeong_flow} - ${nameInfo.eumryeong_detail} (${nameInfo.eumryeong_score}/100)
+[자원 오행 흐름] ${nameInfo.jawon_flow} - ${nameInfo.jawon_detail} (${nameInfo.jawon_score}/100)
+
+[수리오행]
+원격: ${s.won.value}→${s.won.ohaeng}(${s.won.rating[0]}) | 형격: ${s.hyeong.value}→${s.hyeong.ohaeng}(${s.hyeong.rating[0]})
+이격: ${s.yi.value}→${s.yi.ohaeng}(${s.yi.rating[0]}) | 정격: ${s.jeong.value}→${s.jeong.ohaeng}(${s.jeong.rating[0]})
+수리종합: ${s.grade}
+
+[음성학] ${nameInfo.phonetic_score}/100 (${nameInfo.phonetic_detail})
+[뜻 요약] ${nameInfo.meaning_summary}
+[충(沖) 검사] ${(nameInfo.chung_warnings||[]).join('; ')||'없음'}
+[형(刑) 검사] ${(nameInfo.hyeong_warnings||[]).join('; ')||'없음'}`;
+}
+
+async function callGPT(apiKey, systemPrompt, userPrompt, maxTokens) {
+  const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+    body: JSON.stringify({
+      model: 'gpt-4o', temperature: 0.7, max_tokens: maxTokens || 6000,
+      messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }]
+    })
+  });
+  if (!resp.ok) {
+    const err = await resp.text();
+    throw new Error('OpenAI API 오류: ' + resp.status + ' - ' + err);
+  }
+  const data = await resp.json();
+  return data.choices[0].message.content;
+}
+
+async function generateFullReport(apiKey, sajuResult, names, formData, onProgress) {
+  const sajuContext = buildSajuContext(sajuResult, formData);
+  const callDesig = getCallDesignation(formData);
+  const report = { sections: [], call_designation: callDesig };
+
+  onProgress && onProgress(10, '사주 분석 보고서 작성 중...');
+  const introPrompt = `다음 사주 정보를 바탕으로 작명 보고서의 도입부를 작성해주세요.
+
+${sajuContext}
+
+【호칭 규칙】 대상을 부를 때 반드시 '${callDesig}'라고만 지칭하십시오.
+
+아래 네 가지 주제를 빠짐없이 다루되, 각 주제마다 **서술형 소제목** 형식의 소제목을 달고 줄글 문단을 작성하십시오. 전체 분량은 3000자 이상이어야 합니다.
+
+첫째: 보고서 안내 (사주명리학, 음성학, 수리학 등 적용 기반)
+둘째: 사주팔자 핵심 진단 (일간 특성, 각 주의 의미, 타고난 기질)
+셋째: 오행 분포 불균형 분석 (과다/부족 오행의 영향)
+넷째: 이름으로 보완할 방향 (용신/희신, 음령 오행 상생 전략)
+
+번호 목록, bullet point는 절대 사용하지 마십시오.`;
+
+  const intro = await callGPT(apiKey, REPORT_SYSTEM_PROMPT, introPrompt, 6000);
+  report.sections.push({ title: '사주 분석 및 작명 방향', content: intro, type: 'intro' });
+  onProgress && onProgress(25, '도입부 완료');
+
+  let allNamesCtx = '';
+  for (let i = 0; i < names.length; i++) {
+    onProgress && onProgress(25 + i*20, `후보 이름 ${i+1} "${names[i].hangul}" 분석 중...`);
+    const nameCtx = buildNameContext(names[i], i+1);
+    allNamesCtx += nameCtx + '\n';
+    const namePrompt = `다음 사주 정보와 이름 후보를 바탕으로 상세 분석을 작성해주세요.
+
+${sajuContext}
+
+${nameCtx}
+
+【호칭 규칙】 '${callDesig}'라고만 지칭하십시오.
+
+이름의 첫인상, 발음 특성, 한자의 뜻과 역사적 용례, 사주 보완 효과(용신/희신), 음령 오행 흐름, 자원 오행 흐름, 성격/사회적 이미지, 생애주기별 적합성을 모두 다루십시오. 4000자 이상. 각 주제마다 **소제목**을 달고 줄글로 쓰십시오. 번호 목록, bullet point 금지.`;
+
+    const analysis = await callGPT(apiKey, REPORT_SYSTEM_PROMPT, namePrompt, 8000);
+    report.sections.push({
+      title: `후보 이름 ${i+1}: ${names[i].hangul}`, content: analysis, type: 'name_analysis',
+      name_info: {
+        hangul: names[i].hangul, hanja: names[i].chars.map(c=>c.hanja).join(' '),
+        ohaeng: names[i].ohaeng_composition, eumyang: (names[i].eumyang||[]).join(' '),
+        eumryeong_flow: names[i].eumryeong_flow, jawon_flow: names[i].jawon_flow
+      }
+    });
+    onProgress && onProgress(25 + (i+1)*20, `이름 ${i+1} 분석 완료`);
+  }
+
+  onProgress && onProgress(90, '최종 비교 분석 작성 중...');
+  const compPrompt = `다음 사주 정보와 3개 후보 이름을 바탕으로 최종 비교 분석을 작성하세요.
+
+${sajuContext}
+
+${allNamesCtx}
+
+【호칭 규칙】 '${callDesig}'라고만 지칭하십시오.
+
+세 이름의 수리오행, 음령 오행, 자원 오행, 발음, 한자 의미를 종합 비교하고, 사주 보완력, 품격과 인상을 비교하십시오. 최종 추천 이름을 명확히 밝히고 이유를 설득력 있게 쓰십시오. 3000자 이상. **소제목** 형식 필수. 번호 목록 금지.`;
+
+  const comparison = await callGPT(apiKey, REPORT_SYSTEM_PROMPT, compPrompt, 6000);
+  report.sections.push({ title: '최종 추천 및 선택 가이드', content: comparison, type: 'comparison' });
+  onProgress && onProgress(100, '보고서 생성 완료!');
+  return report;
+}
+
+// ============================================================
+// PHASE 4: PDF Generator (ported from pdf_generator.py → jsPDF)
+// ============================================================
+const PW = 210, PH = 297;
+const BODY_LEFT = 30, BODY_RIGHT = 30, BODY_TOP = 22, BODY_BOTTOM = 35;
+const BODY_W = PW - BODY_LEFT - BODY_RIGHT;
+const C_BODY = [50,50,50], C_TITLE = [70,50,35], C_SUBTITLE = [110,90,70], C_HEADER = [140,130,120];
+const C_OHAENG_PDF = { '木':[76,153,76], '火':[204,85,85], '土':[170,145,80], '金':[130,130,160], '水':[70,130,180] };
+
+let _fontLoaded = false;
+let _fontRegularB64 = null, _fontBoldB64 = null;
+
+async function loadFonts() {
+  if (_fontLoaded) return;
+  async function fetchB64(url) {
+    const resp = await fetch(url);
+    const buf = await resp.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    let binary = '';
+    const chunk = 8192;
+    for (let i = 0; i < bytes.length; i += chunk) {
+      binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+    }
+    return btoa(binary);
+  }
+  _fontRegularB64 = await fetchB64('fonts/NanumGothic-Regular.ttf');
+  _fontBoldB64 = await fetchB64('fonts/NanumGothic-Bold.ttf');
+  _fontLoaded = true;
+}
+
+async function generatePDF(sajuResult, names, report, formData) {
+  await loadFonts();
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+
+  doc.addFileToVFS('NanumGothic-Regular.ttf', _fontRegularB64);
+  doc.addFont('NanumGothic-Regular.ttf', 'NanumGothic', 'normal');
+  doc.addFileToVFS('NanumGothic-Bold.ttf', _fontBoldB64);
+  doc.addFont('NanumGothic-Bold.ttf', 'NanumGothic', 'bold');
+
+  function addBgPage(imgKey) { doc.addPage(); doc.addImage(ASSETS_B64[imgKey], 'JPEG', 0, 0, PW, PH); }
+  function addBodyPage() { doc.addPage(); doc.addImage(ASSETS_B64['naeji'], 'JPEG', 0, 0, PW, PH); return BODY_TOP; }
+
+  // Cover
+  doc.addImage(ASSETS_B64['front_cover'], 'JPEG', 0, 0, PW, PH);
+  // TOC
+  addBgPage('toc');
+  // Static pages
+  for (let i = 1; i <= 9; i++) addBgPage('page' + i);
+
+  // Helper: write prose with auto page break
+  function writeProse(text) {
+    if (!text) return;
+    const FONT_SIZE = 10, LINE_H = 6, PARA_GAP = 8, SUB_GAP = 10, SUB_AFTER = 4;
+    text = text.replace(/^#{1,6}\s+/gm, '').replace(/^[\-\*\•]\s+/gm, '').replace(/^\d+[\.\)]\s+/gm, '')
+      .replace(/```[\s\S]*?```/g, '').replace(/---+/g, '');
+    const rawParas = text.split(/\n\s*\n/);
+    const blocks = [];
+    for (let i = 0; i < rawParas.length; i++) {
+      let para = rawParas[i].trim();
+      if (!para || para.length < 3) continue;
+      const m = para.match(/^\*\*(.+?)\*\*\s*([\s\S]*)/);
+      if (m) {
+        const sub = m[1].trim();
+        let body = m[2].trim().replace(/\n/g, ' ').replace(/\s+/g, ' ').replace(/\*\*(.*?)\*\*/g, '$1').replace(/\*(.*?)\*/g, '$1');
+        if (!body && i+1 < rawParas.length) {
+          body = rawParas[i+1].trim().replace(/\n/g, ' ').replace(/\s+/g, ' ').replace(/\*\*(.*?)\*\*/g, '$1');
+          i++;
+        }
+        blocks.push([sub, body]);
+      } else {
+        let body = para.replace(/\n/g, ' ').replace(/\s+/g, ' ').replace(/\*\*(.*?)\*\*/g, '$1').replace(/\*(.*?)\*/g, '$1');
+        if (body.length >= 5) blocks.push(['', body]);
+      }
+    }
+    let y = addBodyPage();
+    let paraOnPage = 0;
+    blocks.forEach(([sub, body]) => {
+      if (paraOnPage >= 2) { y = addBodyPage(); paraOnPage = 0; }
+      if (sub) {
+        if (paraOnPage > 0) y += SUB_GAP;
+        if (y > PH - BODY_BOTTOM - 20) { y = addBodyPage(); paraOnPage = 0; }
+        doc.setFont('NanumGothic', 'bold'); doc.setFontSize(FONT_SIZE + 1); doc.setTextColor(...C_TITLE);
+        const subLines = doc.splitTextToSize(sub, BODY_W);
+        subLines.forEach(sl => { doc.text(sl, BODY_LEFT, y); y += LINE_H; });
+        y += SUB_AFTER;
+      }
+      if (body) {
+        doc.setFont('NanumGothic', 'normal'); doc.setFontSize(FONT_SIZE); doc.setTextColor(...C_BODY);
+        const lines = doc.splitTextToSize('   ' + body, BODY_W);
+        lines.forEach(line => {
+          if (y > PH - BODY_BOTTOM) { y = addBodyPage() + 10; paraOnPage = 0; }
+          doc.text(line, BODY_LEFT, y); y += LINE_H;
+        });
+        y += PARA_GAP;
+      }
+      paraOnPage++;
+    });
+  }
+
+  // Saju info page
+  function addSajuInfo() {
+    let y = addBodyPage() + 8;
+    doc.setFont('NanumGothic', 'bold'); doc.setFontSize(16); doc.setTextColor(...C_TITLE);
+    doc.text('사주팔자 구성', PW/2, y, { align: 'center' }); y += 18;
+    doc.setDrawColor(180,160,130); doc.setLineWidth(0.4); doc.line(70, y, 140, y); y += 10;
+    // Basic info
+    const info = [['성씨', formData.surname||''],['성별', formData.gender||''],['생년월일', (formData.birth_date||'')+' (양력)'],['출생시간', formData.birth_time||'미상']];
+    info.forEach(([label, value]) => {
+      doc.setFont('NanumGothic', 'normal'); doc.setFontSize(10); doc.setTextColor(...C_SUBTITLE);
+      doc.text(label, 85, y, { align: 'right' });
+      doc.setFont('NanumGothic', 'bold'); doc.setTextColor(...C_BODY);
+      doc.text(value, 93, y); y += 8;
+    });
+    y += 10;
+    // Saju table
+    const pLabels = ['시주','일주','월주','년주'];
+    const pKeys = ['hour_pillar','day_pillar','month_pillar','year_pillar'];
+    const tX = 40, colW = 32.5, rowH = 16;
+    doc.setFillColor(100,75,55); doc.setTextColor(255,255,255);
+    doc.setFont('NanumGothic', 'bold'); doc.setFontSize(10);
+    pLabels.forEach((l,i) => { doc.rect(tX+i*colW, y, colW, 10, 'F'); doc.text(l, tX+i*colW+colW/2, y+7, {align:'center'}); });
+    y += 10;
+    doc.setFillColor(248,244,238);
+    // Stems
+    pKeys.forEach((k,i) => {
+      const p = sajuResult[k];
+      doc.rect(tX+i*colW, y, colW, rowH, 'FD');
+      doc.setFont('NanumGothic','bold'); doc.setFontSize(12);
+      if (p) { doc.setTextColor(...(C_OHAENG_PDF[p.stem_ohaeng]||C_BODY)); doc.text(p.stem+'('+p.stem_kr+')', tX+i*colW+colW/2, y+rowH/2+2, {align:'center'}); }
+      else { doc.setTextColor(...C_BODY); doc.text('미상', tX+i*colW+colW/2, y+rowH/2+2, {align:'center'}); }
+    });
+    y += rowH;
+    // Branches
+    pKeys.forEach((k,i) => {
+      const p = sajuResult[k];
+      doc.rect(tX+i*colW, y, colW, rowH, 'FD');
+      if (p) { doc.setTextColor(...(C_OHAENG_PDF[p.branch_ohaeng]||C_BODY)); doc.text(p.branch+'('+p.branch_kr+')', tX+i*colW+colW/2, y+rowH/2+2, {align:'center'}); }
+      else { doc.setTextColor(...C_BODY); doc.text('미상', tX+i*colW+colW/2, y+rowH/2+2, {align:'center'}); }
+    });
+    y += rowH + 12;
+    // Ohaeng bars
+    const oa = sajuResult.ohaeng_analysis;
+    doc.setFont('NanumGothic','bold'); doc.setFontSize(12); doc.setTextColor(...C_TITLE);
+    doc.text('오행 분포', PW/2, y, {align:'center'}); y += 12;
+    const maxCnt = Math.max(...Object.values(oa.count), 1);
+    [['木(목)','木'],['火(화)','火'],['土(토)','土'],['金(금)','金'],['水(수)','水']].forEach(([nm,k]) => {
+      const cnt = oa.count[k];
+      const barW = Math.max((cnt/maxCnt)*65, 2);
+      doc.setFont('NanumGothic','normal'); doc.setFontSize(10); doc.setTextColor(...C_BODY);
+      doc.text(nm, 73, y, {align:'right'});
+      doc.setFillColor(...C_OHAENG_PDF[k]); doc.rect(78, y-4, barW > 0 ? barW : 2, 5, 'F');
+      doc.setFont('NanumGothic','bold'); doc.setTextColor(...C_OHAENG_PDF[k]);
+      doc.text(String(cnt), 78+barW+3, y); y += 8;
+    });
+    y += 8;
+    doc.setFont('NanumGothic','normal'); doc.setFontSize(10); doc.setTextColor(...C_BODY);
+    const yg = oa.yongsin;
+    doc.text(`일간: ${oa.ilgan}(${oa.ilgan_kr}) ${oa.ilgan_ohaeng}(${oa.ilgan_ohaeng_kr})  |  강약: ${yg.strength_desc}`, PW/2, y, {align:'center'}); y+=8;
+    doc.text(`용신: ${yg.yongsin}(${yg.yongsin_kr})  |  희신: ${yg.huisin||''}(${yg.huisin_kr||''})`, PW/2, y, {align:'center'}); y+=8;
+    doc.text(`부족 오행: ${yg.missing_ohaeng.map((m,i)=>m+'('+yg.missing_ohaeng_kr[i]+')').join(', ')}`, PW/2, y, {align:'center'});
+  }
+
+  // Name card page
+  function addNameCard(nameInfo) {
+    let y = addBodyPage() + 10;
+    doc.setFont('NanumGothic','bold'); doc.setFontSize(22); doc.setTextColor(...C_TITLE);
+    doc.text(nameInfo.hangul, PW/2, y, {align:'center'}); y += 14;
+    doc.setFont('NanumGothic','normal'); doc.setFontSize(12); doc.setTextColor(...C_SUBTITLE);
+    doc.text(nameInfo.chars.map(c=>c.hanja).join(' '), PW/2, y, {align:'center'}); y += 10;
+    doc.setDrawColor(180,160,130); doc.setLineWidth(0.4); doc.line(60,y,150,y); y += 10;
+    // Info rows
+    const infoItems = [];
+    if (nameInfo.ohaeng_composition) infoItems.push(['오행 구성', nameInfo.ohaeng_composition]);
+    if (nameInfo.eumryeong_flow) infoItems.push(['음령 오행', nameInfo.eumryeong_flow]);
+    if (nameInfo.jawon_flow) infoItems.push(['자원 오행', nameInfo.jawon_flow]);
+    infoItems.forEach(([label, value]) => {
+      doc.setFont('NanumGothic','normal'); doc.setFontSize(10); doc.setTextColor(...C_SUBTITLE);
+      doc.text(label, 78, y, {align:'right'});
+      doc.setFont('NanumGothic','bold'); doc.setTextColor(...C_BODY);
+      doc.text(String(value), 86, y); y += 8;
+    });
+    y += 6;
+    doc.setDrawColor(210,200,185); doc.setLineWidth(0.2); doc.line(BODY_LEFT,y,PW-BODY_RIGHT,y); y += 8;
+    // Char details
+    nameInfo.chars.forEach(c => {
+      doc.setFont('NanumGothic','bold'); doc.setFontSize(14); doc.setTextColor(...C_TITLE);
+      doc.text(c.hanja, BODY_LEFT+12, y);
+      doc.setFont('NanumGothic','normal'); doc.setFontSize(10); doc.setTextColor(...C_BODY);
+      doc.text(`${c.hangul}  |  ${c.meaning}  |  ${c.strokes}획  |  ${c.ohaeng}`, BODY_LEFT+28, y); y += 12;
+    });
+    // Suri
+    const suri = nameInfo.suri;
+    if (suri) {
+      y += 6; doc.line(BODY_LEFT,y,PW-BODY_RIGHT,y); y += 8;
+      doc.setFont('NanumGothic','bold'); doc.setFontSize(11); doc.setTextColor(...C_TITLE);
+      doc.text('수리오행', PW/2, y, {align:'center'}); y += 10;
+      doc.setFont('NanumGothic','normal'); doc.setFontSize(9.5); doc.setTextColor(...C_BODY);
+      [['원격',suri.won],['형격',suri.hyeong],['이격',suri.yi],['정격',suri.jeong]].forEach(([l,s]) => {
+        doc.text(`${l}: ${s.value} → ${s.ohaeng} (${s.rating[0]})`, PW/2, y, {align:'center'}); y += 7;
+      });
+      doc.setFont('NanumGothic','bold'); doc.setFontSize(10);
+      doc.text(`수리종합: ${suri.grade}`, PW/2, y, {align:'center'});
+    }
+  }
+
+  // Build report
+  const sections = report.sections || [];
+  let chapterIdx = 1;
+  sections.forEach(sec => {
+    if (sec.type === 'intro') {
+      addBgPage('chapter01');
+      addSajuInfo();
+      writeProse(sec.content);
+    } else if (sec.type === 'name_analysis') {
+      chapterIdx++;
+      addBgPage('chapter0' + Math.min(chapterIdx, 5));
+      const ni = names.find(n => n.hangul === (sec.name_info||{}).hangul) || names[chapterIdx-2];
+      if (ni) addNameCard(ni);
+      writeProse(sec.content);
+    } else if (sec.type === 'comparison') {
+      addBgPage('chapter05');
+      writeProse(sec.content);
+    }
+  });
+
+  // Back cover
+  addBgPage('back_cover');
+
+  return doc;
+}
+
+// ============================================================
+// END OF JS ENGINES
+// ============================================================
+</script>
+
+<!-- ============================================================ -->
+<!-- PHASE 5: React UI -->
+<!-- ============================================================ -->
+<script type="text/babel">
+const { useState, useEffect, useCallback } = React;
+
+function App() {
+  const [step, setStep] = useState(0);
+  const [apiKey, setApiKey] = useState(localStorage.getItem('naming_api_key') || '');
+  const [formData, setFormData] = useState({
+    surname: '', gender: '남', birth_date: '', birth_time: '',
+    birth_calendar: '양력', request_type: '신생아 작명', current_name: '',
+    name_length: '2', considerations: '', desired_image: '', avoid_feeling: ''
+  });
+  const [sajuResult, setSajuResult] = useState(null);
+  const [names, setNames] = useState([]);
+  const [report, setReport] = useState(null);
+  const [progress, setProgress] = useState(0);
+  const [progressMsg, setProgressMsg] = useState('');
+  const [error, setError] = useState('');
+  const [dataLoaded, setDataLoaded] = useState(false);
+
+  // Load data
+  useEffect(() => {
+    Promise.all([
+      fetch('data/hanja.json').then(r => r.json()),
+      fetch('data/bulyong.json').then(r => r.json())
+    ]).then(([hanja, bulyong]) => {
+      HANJA_DB = hanja;
+      BULYONG_SET = new Set(bulyong);
+      buildHangulIndex();
+      setDataLoaded(true);
+    }).catch(e => setError('데이터 로딩 실패: ' + e.message));
+  }, []);
+
+  const saveApiKey = () => {
+    localStorage.setItem('naming_api_key', apiKey);
+    setStep(1);
+  };
+
+  const handleGenerate = async () => {
+    setError('');
+    if (!formData.surname) { setError('성씨를 입력해주세요'); return; }
+    if (!formData.birth_date) { setError('생년월일을 입력해주세요'); return; }
+
+    setStep(2); setProgress(10); setProgressMsg('사주 계산 중...');
+
+    try {
+      const [y, m, d] = formData.birth_date.split('-').map(Number);
+      const bh = formData.birth_time && formData.birth_time !== '미상' ? parseInt(formData.birth_time.split(':')[0]) : null;
+      const bm = formData.birth_time && formData.birth_time !== '미상' && formData.birth_time.includes(':') ? parseInt(formData.birth_time.split(':')[1]) : 0;
+
+      const saju = calculateSaju(y, m, d, bh, bm);
+      setSajuResult(saju);
+      setProgress(30); setProgressMsg('이름 후보 생성 중...');
+
+      await new Promise(r => setTimeout(r, 100)); // UI update
+
+      const prefs = { birth_year: y, request_type: formData.request_type, name_length: formData.name_length };
+      const generated = generateNames(formData.surname, formData.gender, saju, prefs, 3);
+      setNames(generated);
+      setProgress(100); setProgressMsg('완료!');
+      setTimeout(() => setStep(3), 500);
+    } catch (e) {
+      setError('생성 오류: ' + e.message);
+      setStep(1);
+    }
+  };
+
+  const handleReport = async () => {
+    if (!apiKey) { setError('API 키를 설정해주세요'); setStep(0); return; }
+    setStep(4); setProgress(0); setProgressMsg('보고서 생성 시작...');
+    setError('');
+    try {
+      const rep = await generateFullReport(apiKey, sajuResult, names, formData, (p, msg) => {
+        setProgress(p); setProgressMsg(msg);
+      });
+      setReport(rep);
+      setStep(5);
+    } catch (e) {
+      setError('보고서 생성 오류: ' + e.message);
+      setStep(3);
+    }
+  };
+
+  const handlePDF = async () => {
+    setProgressMsg('PDF 생성 중... (폰트 로딩 포함 30초 소요)');
+    setProgress(50);
+    try {
+      const doc = await generatePDF(sajuResult, names, report, formData);
+      const filename = `바른이름연구소_${formData.surname}_작명보고서.pdf`;
+      doc.save(filename);
+      setProgressMsg('PDF 다운로드 완료!');
+    } catch (e) {
+      setError('PDF 생성 오류: ' + e.message);
+    }
+  };
+
+  const ohaengColor = (oh) => {
+    const map = {'木':'ohaeng-wood','火':'ohaeng-fire','土':'ohaeng-earth','金':'ohaeng-metal','水':'ohaeng-water'};
+    return map[oh] || '';
+  };
+
+  // Step indicators
+  const stepLabels = ['설정','입력','생성','결과','보고서','완료'];
+
+  if (!dataLoaded && !error) {
+    return <div className="container" style={{textAlign:'center',paddingTop:'4rem'}}>
+      <div className="loading-spinner"></div>
+      <p>한자 데이터 로딩 중...</p>
+    </div>;
+  }
+
+  return (
+    <div>
+      <div className="header">
+        <h1>바른이름연구소</h1>
+        <p>AI 사주 기반 작명 서비스</p>
+      </div>
+      <div className="container">
+        <div className="step-indicator">
+          {stepLabels.map((l, i) => (
+            <div key={i} className={`step-dot ${i===step?'active':''} ${i<step?'completed':''}`}>{i+1}</div>
+          ))}
+        </div>
+
+        {error && <div className="error-msg">{error}</div>}
+
+        {/* Step 0: Settings */}
+        {step === 0 && (
+          <div className="form-card">
+            <h2>API 설정</h2>
+            <div className="form-group">
+              <label>OpenAI API Key</label>
+              <input type="password" value={apiKey} onChange={e => setApiKey(e.target.value)}
+                placeholder="sk-..." />
+              <small style={{color:'var(--text-light)',fontSize:'.8rem'}}>
+                보고서 생성에 필요합니다. 키는 브라우저에만 저장됩니다.
+              </small>
+            </div>
+            <button className="btn btn-primary" onClick={saveApiKey}>
+              {apiKey ? '설정 완료 → 다음' : 'API 키 없이 진행 (이름 생성만)'}
+            </button>
+          </div>
+        )}
+
+        {/* Step 1: Input Form */}
+        {step === 1 && (
+          <div className="form-card">
+            <h2>작명 정보 입력</h2>
+            <div className="form-row">
+              <div className="form-group">
+                <label>성씨</label>
+                <input value={formData.surname} onChange={e => setFormData({...formData, surname: e.target.value})}
+                  placeholder="예: 김" maxLength={2} />
+              </div>
+              <div className="form-group">
+                <label>성별</label>
+                <select value={formData.gender} onChange={e => setFormData({...formData, gender: e.target.value})}>
+                  <option value="남">남</option>
+                  <option value="여">여</option>
+                </select>
+              </div>
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label>생년월일 (양력)</label>
+                <input type="date" value={formData.birth_date} onChange={e => setFormData({...formData, birth_date: e.target.value})} />
+              </div>
+              <div className="form-group">
+                <label>출생시간 (선택)</label>
+                <input type="time" value={formData.birth_time} onChange={e => setFormData({...formData, birth_time: e.target.value})} />
+              </div>
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label>신청 유형</label>
+                <select value={formData.request_type} onChange={e => setFormData({...formData, request_type: e.target.value})}>
+                  <option value="신생아 작명">신생아 작명</option>
+                  <option value="개명">개명</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label>이름 글자 수</label>
+                <select value={formData.name_length} onChange={e => setFormData({...formData, name_length: e.target.value})}>
+                  <option value="2">2글자 (외자 이름 X)</option>
+                  <option value="1">1글자 (외자 이름)</option>
+                </select>
+              </div>
+            </div>
+            {formData.request_type === '개명' && (
+              <div className="form-group">
+                <label>현재 이름</label>
+                <input value={formData.current_name} onChange={e => setFormData({...formData, current_name: e.target.value})} placeholder="현재 사용 중인 이름" />
+              </div>
+            )}
+            <div className="form-group">
+              <label>원하는 이미지/느낌 (선택)</label>
+              <input value={formData.desired_image} onChange={e => setFormData({...formData, desired_image: e.target.value})} placeholder="예: 밝고 지적인, 강인한" />
+            </div>
+            <div className="form-group">
+              <label>피하고 싶은 느낌 (선택)</label>
+              <input value={formData.avoid_feeling} onChange={e => setFormData({...formData, avoid_feeling: e.target.value})} placeholder="예: 너무 흔한, 어려운 한자" />
+            </div>
+            <button className="btn btn-primary" onClick={handleGenerate}>이름 생성하기</button>
+          </div>
+        )}
+
+        {/* Step 2: Generating */}
+        {step === 2 && (
+          <div className="progress-container">
+            <div className="loading-spinner"></div>
+            <h3>이름을 생성하고 있습니다</h3>
+            <div className="progress-bar-wrap">
+              <div className="progress-bar-fill" style={{width: progress+'%'}}></div>
+            </div>
+            <p className="progress-text">{progressMsg}</p>
+          </div>
+        )}
+
+        {/* Step 3: Results */}
+        {step === 3 && sajuResult && (
+          <div>
+            <button className="back-btn" onClick={() => setStep(1)}>← 다시 입력</button>
+            <div className="form-card">
+              <h2>사주 분석 결과</h2>
+              <table className="saju-table">
+                <thead><tr><th>시주</th><th>일주</th><th>월주</th><th>년주</th></tr></thead>
+                <tbody>
+                  <tr>
+                    {['hour_pillar','day_pillar','month_pillar','year_pillar'].map(k => (
+                      <td key={k+'s'}>{sajuResult[k] ? sajuResult[k].stem+'('+sajuResult[k].stem_kr+')' : '미상'}</td>
+                    ))}
+                  </tr>
+                  <tr>
+                    {['hour_pillar','day_pillar','month_pillar','year_pillar'].map(k => (
+                      <td key={k+'b'}>{sajuResult[k] ? sajuResult[k].branch+'('+sajuResult[k].branch_kr+')' : '미상'}</td>
+                    ))}
+                  </tr>
+                </tbody>
+              </table>
+              <div className="info-grid">
+                <span className="label">일간</span>
+                <span>{sajuResult.ohaeng_analysis.ilgan}({sajuResult.ohaeng_analysis.ilgan_kr}) - {sajuResult.ohaeng_analysis.ilgan_ohaeng}({sajuResult.ohaeng_analysis.ilgan_ohaeng_kr})</span>
+                <span className="label">강약</span>
+                <span>{sajuResult.ohaeng_analysis.yongsin.strength_desc}</span>
+                <span className="label">용신</span>
+                <span>{sajuResult.ohaeng_analysis.yongsin.yongsin}({sajuResult.ohaeng_analysis.yongsin.yongsin_kr})</span>
+                <span className="label">부족 오행</span>
+                <span>{sajuResult.ohaeng_analysis.yongsin.missing_ohaeng.map((m,i) => (
+                  <span key={m} className={`ohaeng-badge ${ohaengColor(m)}`}>{m}({sajuResult.ohaeng_analysis.yongsin.missing_ohaeng_kr[i]})</span>
+                ))}</span>
+              </div>
+              <div style={{margin:'1rem 0'}}>
+                <strong>오행 분포: </strong>
+                {OHAENG_LIST.map(oh => (
+                  <span key={oh} className={`ohaeng-badge ${ohaengColor(oh)}`}>
+                    {oh}({OHAENG_KR[oh]}) {sajuResult.ohaeng_analysis.count[oh]}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <h2 style={{fontFamily:"'Noto Serif KR',serif", color:'var(--primary)', marginBottom:'1rem'}}>추천 이름</h2>
+            {names.map((name, i) => (
+              <div key={i} className="name-card">
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+                  <div>
+                    <div className="name-hangul">{name.hangul}</div>
+                    <div className="name-hanja">{name.chars.map(c => c.hanja+'('+c.hangul+')').join(' ')}</div>
+                  </div>
+                  <div className="name-score">종합 {Math.round(name.total_score)}점</div>
+                </div>
+                <div style={{marginTop:'.8rem',fontSize:'.85rem',color:'var(--text-light)'}}>
+                  {name.meaning_summary}
+                </div>
+                <div style={{marginTop:'.5rem'}}>
+                  {name.chars.map(c => (
+                    <span key={c.hanja} className={`ohaeng-badge ${ohaengColor(c.ohaeng)}`}>{c.ohaeng}({OHAENG_KR[c.ohaeng]})</span>
+                  ))}
+                  <span style={{fontSize:'.8rem',marginLeft:'.5rem',color:'var(--text-light)'}}>
+                    수리: {name.suri.grade} | 음령: {name.eumryeong_flow} | 자원: {name.jawon_flow}
+                  </span>
+                </div>
+                {name.chung_warnings.length > 0 && (
+                  <div style={{color:'var(--error)',fontSize:'.8rem',marginTop:'.3rem'}}>
+                    충: {name.chung_warnings.join(', ')}
+                  </div>
+                )}
+              </div>
+            ))}
+
+            <div style={{marginTop:'1.5rem',display:'flex',gap:'1rem'}}>
+              <button className="btn btn-primary" onClick={handleReport} style={{flex:1}}>
+                보고서 생성하기 (GPT-4o)
+              </button>
+              <button className="btn btn-outline" onClick={() => { setNames([]); handleGenerate(); }} style={{flex:0,whiteSpace:'nowrap'}}>
+                다시 생성
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 4: Report generating */}
+        {step === 4 && (
+          <div className="progress-container">
+            <div className="loading-spinner"></div>
+            <h3>보고서를 생성하고 있습니다</h3>
+            <p style={{color:'var(--text-light)',marginBottom:'1rem'}}>GPT-4o로 5단계 분석을 수행합니다 (약 2~3분)</p>
+            <div className="progress-bar-wrap">
+              <div className="progress-bar-fill" style={{width: progress+'%'}}></div>
+            </div>
+            <p className="progress-text">{progressMsg} ({progress}%)</p>
+          </div>
+        )}
+
+        {/* Step 5: Report view */}
+        {step === 5 && report && (
+          <div>
+            <button className="back-btn" onClick={() => setStep(3)}>← 결과로 돌아가기</button>
+            {report.sections.map((sec, i) => (
+              <div key={i} className="report-section">
+                <h3>{sec.title}</h3>
+                {sec.type === 'name_analysis' && sec.name_info && (
+                  <div style={{background:'var(--bg)',padding:'1rem',borderRadius:'8px',marginBottom:'1rem'}}>
+                    <strong style={{fontSize:'1.3rem',color:'var(--primary)'}}>{sec.name_info.hangul}</strong>
+                    <span style={{marginLeft:'.8rem',color:'var(--text-light)'}}>{sec.name_info.hanja}</span>
+                  </div>
+                )}
+                <div className="prose">{sec.content}</div>
+              </div>
+            ))}
+            <button className="btn btn-primary" onClick={handlePDF} style={{marginTop:'1rem'}}>
+              PDF 다운로드
+            </button>
+            {progressMsg && <p className="progress-text" style={{marginTop:'.5rem'}}>{progressMsg}</p>}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.render(<App />, document.getElementById('root'));
+</script>
+</body>
+</html>
+</body>
+</html>
+
+</body>
+</html>
