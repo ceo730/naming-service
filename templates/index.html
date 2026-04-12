@@ -1,0 +1,1515 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>바른이름연구소 - AI 작명 서비스</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&family=Noto+Serif+KR:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #1a237e;
+            --primary-light: #3949ab;
+            --accent: #c9a96e;
+            --accent-light: #e6d5a8;
+            --bg: #faf8f5;
+            --bg-card: #ffffff;
+            --text: #2c2c2c;
+            --text-light: #6b6b6b;
+            --border: #e8e4df;
+            --success: #2e7d32;
+            --error: #c62828;
+            --wood: #4caf50;
+            --fire: #f44336;
+            --earth: #ff9800;
+            --metal: #9e9e9e;
+            --water: #2196f3;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+
+        /* ─── 헤더 ─── */
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, #283593 100%);
+            color: white;
+            padding: 2rem 0;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+        .header h1 {
+            font-family: 'Noto Serif KR', serif;
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: 4px;
+            margin-bottom: 0.5rem;
+        }
+        .header p {
+            color: var(--accent-light);
+            font-size: 0.95rem;
+            letter-spacing: 2px;
+        }
+
+        /* ─── 컨테이너 ─── */
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+        }
+
+        /* ─── 스텝 인디케이터 ─── */
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+        .step-dot {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: var(--border);
+            color: var(--text-light);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        .step-dot.active {
+            background: var(--primary);
+            color: white;
+            transform: scale(1.15);
+        }
+        .step-dot.completed {
+            background: var(--accent);
+            color: white;
+        }
+
+        /* ─── 폼 카드 ─── */
+        .form-card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+            border: 1px solid var(--border);
+        }
+        .form-card h2 {
+            font-family: 'Noto Serif KR', serif;
+            font-size: 1.3rem;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--accent);
+        }
+        .form-card h3 {
+            font-size: 1rem;
+            color: var(--primary-light);
+            margin: 1.5rem 0 0.5rem;
+        }
+        .form-card p.desc {
+            font-size: 0.85rem;
+            color: var(--text-light);
+            margin-bottom: 1rem;
+        }
+
+        /* ─── 폼 요소 ─── */
+        .form-group {
+            margin-bottom: 1.2rem;
+        }
+        .form-group label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 0.3rem;
+            font-size: 0.9rem;
+            color: var(--text);
+        }
+        .form-group label .required {
+            color: var(--error);
+            margin-left: 2px;
+        }
+        input[type="text"],
+        input[type="email"],
+        input[type="tel"],
+        input[type="date"],
+        input[type="time"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 0.7rem 1rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.95rem;
+            transition: border-color 0.2s;
+            background: white;
+        }
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(26,35,126,0.1);
+        }
+        textarea { resize: vertical; min-height: 80px; }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        /* ─── 체크박스/라디오 그룹 ─── */
+        .check-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.3rem;
+        }
+        .check-item {
+            position: relative;
+        }
+        .check-item input {
+            display: none;
+        }
+        .check-item label {
+            display: inline-block;
+            padding: 0.4rem 1rem;
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+            user-select: none;
+        }
+        .check-item input:checked + label {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+        .check-item input[type="radio"]:checked + label {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        /* ─── 버튼 ─── */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.8rem 2rem;
+            border: none;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            gap: 0.5rem;
+        }
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+        .btn-primary:hover { background: var(--primary-light); }
+        .btn-accent {
+            background: var(--accent);
+            color: white;
+        }
+        .btn-accent:hover { background: #b8963f; }
+        .btn-outline {
+            background: transparent;
+            border: 2px solid var(--primary);
+            color: var(--primary);
+        }
+        .btn-outline:hover { background: var(--primary); color: white; }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-group {
+            display: flex;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        /* ─── 스텝 컨텐츠 ─── */
+        .step-content { display: none; }
+        .step-content.active { display: block; }
+
+        /* ─── 로딩 ─── */
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(255,255,255,0.95);
+            z-index: 1000;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .loading-overlay.show { display: flex; }
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid var(--border);
+            border-top: 4px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 1.5rem;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-text {
+            font-size: 1.1rem;
+            color: var(--primary);
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+        .loading-sub {
+            font-size: 0.9rem;
+            color: var(--text-light);
+        }
+        .progress-bar-container {
+            width: 300px;
+            height: 6px;
+            background: var(--border);
+            border-radius: 3px;
+            margin-top: 1rem;
+            overflow: hidden;
+        }
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            border-radius: 3px;
+            transition: width 0.5s ease;
+            width: 0%;
+        }
+
+        /* ─── 결과 ─── */
+        .result-section { display: none; }
+        .result-section.show { display: block; }
+
+        .saju-card {
+            background: linear-gradient(135deg, #1a237e 0%, #283593 100%);
+            color: white;
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+        }
+        .saju-card h2 {
+            font-family: 'Noto Serif KR', serif;
+            color: var(--accent-light);
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .saju-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            text-align: center;
+            margin: 1.5rem 0;
+        }
+        .saju-pillar {
+            background: rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 1rem 0.5rem;
+        }
+        .saju-pillar .label {
+            font-size: 0.8rem;
+            color: var(--accent-light);
+            margin-bottom: 0.5rem;
+        }
+        .saju-pillar .hanja {
+            font-family: 'Noto Serif KR', serif;
+            font-size: 1.8rem;
+            line-height: 1.3;
+        }
+        .saju-pillar .kr {
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.7);
+        }
+        .saju-pillar .ohaeng-tag {
+            display: inline-block;
+            padding: 0.15rem 0.5rem;
+            border-radius: 10px;
+            font-size: 0.7rem;
+            margin-top: 0.3rem;
+        }
+
+        .ohaeng-木 { background: rgba(76,175,80,0.3); color: #a5d6a7; }
+        .ohaeng-火 { background: rgba(244,67,54,0.3); color: #ef9a9a; }
+        .ohaeng-土 { background: rgba(255,152,0,0.3); color: #ffcc80; }
+        .ohaeng-金 { background: rgba(158,158,158,0.3); color: #e0e0e0; }
+        .ohaeng-水 { background: rgba(33,150,243,0.3); color: #90caf9; }
+
+        .ohaeng-bar-section {
+            margin: 1.5rem 0;
+        }
+        .ohaeng-bar-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            gap: 0.5rem;
+        }
+        .ohaeng-bar-label {
+            width: 50px;
+            font-size: 0.85rem;
+            text-align: right;
+        }
+        .ohaeng-bar-track {
+            flex: 1;
+            height: 20px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .ohaeng-bar-fill {
+            height: 100%;
+            border-radius: 10px;
+            transition: width 0.8s ease;
+        }
+        .ohaeng-bar-fill.木 { background: var(--wood); }
+        .ohaeng-bar-fill.火 { background: var(--fire); }
+        .ohaeng-bar-fill.土 { background: var(--earth); }
+        .ohaeng-bar-fill.金 { background: var(--metal); }
+        .ohaeng-bar-fill.水 { background: var(--water); }
+
+        .ohaeng-bar-count {
+            width: 30px;
+            font-size: 0.85rem;
+            color: rgba(255,255,255,0.8);
+        }
+
+        .yongsin-box {
+            background: rgba(201,169,110,0.2);
+            border: 1px solid rgba(201,169,110,0.4);
+            border-radius: 12px;
+            padding: 1rem 1.5rem;
+            margin-top: 1rem;
+        }
+        .yongsin-box h4 {
+            color: var(--accent-light);
+            margin-bottom: 0.5rem;
+        }
+        .yongsin-box p {
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.9);
+        }
+
+        /* ─── 이름 카드 ─── */
+        .name-card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+            border: 2px solid var(--border);
+            transition: border-color 0.3s;
+        }
+        .name-card:hover {
+            border-color: var(--accent);
+        }
+        .name-card .rank-badge {
+            display: inline-block;
+            background: var(--accent);
+            color: white;
+            padding: 0.2rem 0.8rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+        .name-card .name-hangul {
+            font-family: 'Noto Serif KR', serif;
+            font-size: 2.5rem;
+            color: var(--primary);
+            margin-bottom: 0.3rem;
+            letter-spacing: 8px;
+        }
+        .name-card .name-hanja {
+            font-family: 'Noto Serif KR', serif;
+            font-size: 1.2rem;
+            color: var(--text-light);
+            margin-bottom: 1rem;
+        }
+
+        .name-detail-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+        .name-detail-item {
+            background: var(--bg);
+            border-radius: 8px;
+            padding: 0.8rem 1rem;
+        }
+        .name-detail-item .label {
+            font-size: 0.75rem;
+            color: var(--text-light);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.2rem;
+        }
+        .name-detail-item .value {
+            font-size: 0.95rem;
+            font-weight: 500;
+        }
+
+        .hanja-breakdown {
+            display: flex;
+            gap: 1.5rem;
+            margin: 1rem 0;
+            justify-content: center;
+        }
+        .hanja-char-box {
+            text-align: center;
+            padding: 1rem 1.5rem;
+            background: var(--bg);
+            border-radius: 12px;
+            min-width: 120px;
+        }
+        .hanja-char-box .big-char {
+            font-family: 'Noto Serif KR', serif;
+            font-size: 2.5rem;
+            color: var(--primary);
+        }
+        .hanja-char-box .char-reading {
+            font-size: 0.9rem;
+            color: var(--accent);
+            font-weight: 600;
+        }
+        .hanja-char-box .char-meaning {
+            font-size: 0.8rem;
+            color: var(--text-light);
+            margin-top: 0.3rem;
+        }
+        .hanja-char-box .char-info {
+            font-size: 0.75rem;
+            color: var(--text-light);
+            margin-top: 0.3rem;
+        }
+
+        .suri-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+        }
+        .suri-table th, .suri-table td {
+            padding: 0.5rem 1rem;
+            text-align: center;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.85rem;
+        }
+        .suri-table th {
+            background: var(--bg);
+            font-weight: 600;
+            color: var(--primary);
+        }
+        .rating-good { color: var(--success); font-weight: 600; }
+        .rating-bad { color: var(--error); font-weight: 600; }
+
+        /* ─── 보고서 ─── */
+        .report-section {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid var(--border);
+        }
+        .report-section h2 {
+            font-family: 'Noto Serif KR', serif;
+            font-size: 1.4rem;
+            color: var(--primary);
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--accent);
+        }
+        .report-content {
+            font-size: 0.95rem;
+            line-height: 1.9;
+        }
+        .report-content h2 {
+            font-size: 1.3rem;
+            margin-top: 2rem;
+        }
+        .report-content h3 {
+            font-size: 1.1rem;
+            color: var(--primary-light);
+            margin: 1.5rem 0 0.8rem;
+            padding-left: 0.8rem;
+            border-left: 3px solid var(--accent);
+        }
+        .report-content p {
+            margin-bottom: 0.8rem;
+            text-align: justify;
+        }
+
+        /* ─── 프린트 ─── */
+        .print-btn {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            z-index: 100;
+        }
+
+        @media print {
+            .header, .step-indicator, .btn-group, .print-btn, .loading-overlay { display: none !important; }
+            .form-card, .step-content { display: none !important; }
+            .result-section { display: block !important; }
+            body { background: white; }
+            .container { max-width: 100%; padding: 0; }
+            .name-card, .report-section, .saju-card { break-inside: avoid; }
+        }
+
+        /* ─── 반응형 ─── */
+        @media (max-width: 600px) {
+            .container { padding: 1rem; }
+            .form-row { grid-template-columns: 1fr; }
+            .saju-grid { grid-template-columns: repeat(2, 1fr); }
+            .name-detail-grid { grid-template-columns: 1fr; }
+            .hanja-breakdown { flex-direction: column; align-items: center; }
+            .name-card .name-hangul { font-size: 2rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>바른이름연구소</h1>
+    <p>AI 사주명리 기반 프리미엄 작명 서비스</p>
+</div>
+
+<div class="container">
+    <!-- 스텝 인디케이터 -->
+    <div class="step-indicator" id="stepIndicator">
+        <div class="step-dot active" data-step="1">1</div>
+        <div class="step-dot" data-step="2">2</div>
+        <div class="step-dot" data-step="3">3</div>
+        <div class="step-dot" data-step="4">4</div>
+        <div class="step-dot" data-step="5">5</div>
+        <div class="step-dot" data-step="6">6</div>
+        <div class="step-dot" data-step="7">7</div>
+        <div class="step-dot" data-step="8">8</div>
+    </div>
+
+    <form id="namingForm" onsubmit="return false;">
+
+    <!-- Step 1: 기본 구분 -->
+    <div class="step-content active" data-step="1">
+        <div class="form-card">
+            <h2>0. 신청 유형</h2>
+            <div class="form-group">
+                <div class="check-group">
+                    <div class="check-item">
+                        <input type="radio" name="request_type" id="rt_new" value="신생아 작명" checked>
+                        <label for="rt_new">신생아 작명</label>
+                    </div>
+                    <div class="check-item">
+                        <input type="radio" name="request_type" id="rt_rename" value="개명">
+                        <label for="rt_rename">개명</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-card">
+            <h2>1. 기본 인적사항</h2>
+            <h3>1-1. 신청자 정보</h3>
+            <div class="form-group">
+                <label>이름</label>
+                <input type="text" name="applicant_name" placeholder="신청자 이름">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>연락처</label>
+                    <input type="tel" name="applicant_phone" placeholder="010-0000-0000">
+                </div>
+                <div class="form-group">
+                    <label>이메일</label>
+                    <input type="email" name="applicant_email" placeholder="email@example.com">
+                </div>
+            </div>
+
+            <h3>1-2. 대상자 정보</h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>성씨 <span class="required">*</span></label>
+                    <input type="text" name="surname" id="surname" placeholder="예: 김" required maxlength="2">
+                </div>
+                <div class="form-group">
+                    <label>성별 <span class="required">*</span></label>
+                    <div class="check-group">
+                        <div class="check-item">
+                            <input type="radio" name="gender" id="g_male" value="남" checked>
+                            <label for="g_male">남</label>
+                        </div>
+                        <div class="check-item">
+                            <input type="radio" name="gender" id="g_female" value="여">
+                            <label for="g_female">여</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>생년월일 (양력) <span class="required">*</span></label>
+                    <input type="date" name="birth_date" id="birthDate" required>
+                </div>
+                <div class="form-group">
+                    <label>출생시간</label>
+                    <input type="time" name="birth_time" id="birthTime">
+                    <div style="margin-top:0.3rem">
+                        <label style="font-size:0.8rem;color:var(--text-light)">
+                            <input type="checkbox" id="timeUnknown" onchange="toggleTimeUnknown()"> 시간 모름
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>출생지</label>
+                <input type="text" name="birth_place" placeholder="예: 서울, 부산 등">
+            </div>
+        </div>
+
+        <div class="btn-group">
+            <div></div>
+            <button type="button" class="btn btn-primary" onclick="nextStep()">다음 단계</button>
+        </div>
+    </div>
+
+    <!-- Step 2: 개명 전용 -->
+    <div class="step-content" data-step="2">
+        <div class="form-card" id="renameSection">
+            <h2>2. 개명 전용 섹션</h2>
+            <p class="desc" id="renameNotice">개명 신청일 경우에만 작성합니다.</p>
+
+            <div id="renameFields">
+                <h3>2-1. 현재 이름</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>한글</label>
+                        <input type="text" name="current_name_kr" placeholder="현재 이름 (한글)">
+                    </div>
+                    <div class="form-group">
+                        <label>한자</label>
+                        <input type="text" name="current_name_hanja" placeholder="현재 이름 (한자)">
+                    </div>
+                </div>
+
+                <h3>2-2. 개명 사유</h3>
+                <div class="check-group">
+                    <div class="check-item"><input type="checkbox" name="rename_reason" id="rr1" value="발음/이미지 문제"><label for="rr1">발음/이미지 문제</label></div>
+                    <div class="check-item"><input type="checkbox" name="rename_reason" id="rr2" value="운세/사주 개선"><label for="rr2">운세/사주 개선</label></div>
+                    <div class="check-item"><input type="checkbox" name="rename_reason" id="rr3" value="인간관계 문제"><label for="rr3">인간관계 문제</label></div>
+                    <div class="check-item"><input type="checkbox" name="rename_reason" id="rr4" value="사업/재물운 개선"><label for="rr4">사업/재물운 개선</label></div>
+                    <div class="check-item"><input type="checkbox" name="rename_reason" id="rr5" value="건강/정신적 문제"><label for="rr5">건강/정신적 문제</label></div>
+                </div>
+
+                <h3>2-3. 현재 이름에 대한 느낌</h3>
+                <div class="form-group">
+                    <label>좋은 점</label>
+                    <textarea name="current_name_good" placeholder="현재 이름의 좋은 점"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>불만/문제점</label>
+                    <textarea name="current_name_bad" placeholder="현재 이름의 불만이나 문제점"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <div class="btn-group">
+            <button type="button" class="btn btn-outline" onclick="prevStep()">이전</button>
+            <button type="button" class="btn btn-primary" onclick="nextStep()">다음 단계</button>
+        </div>
+    </div>
+
+    <!-- Step 3: 사주 및 배경 -->
+    <div class="step-content" data-step="3">
+        <div class="form-card">
+            <h2>3. 사주 및 배경 정보</h2>
+
+            <h3>3-1. 가족 및 환경</h3>
+            <div class="form-group">
+                <label>부모 성향/직업 (선택)</label>
+                <input type="text" name="parent_info" placeholder="예: 아버지 공무원, 어머니 교사">
+            </div>
+            <div class="form-group">
+                <label>가정 분위기</label>
+                <input type="text" name="family_mood" placeholder="예: 화목함, 엄격함 등">
+            </div>
+
+            <h3>3-2. 중요 고려사항</h3>
+            <div class="check-group">
+                <div class="check-item"><input type="checkbox" name="considerations" id="c1" value="건강"><label for="c1">건강</label></div>
+                <div class="check-item"><input type="checkbox" name="considerations" id="c2" value="재물"><label for="c2">재물</label></div>
+                <div class="check-item"><input type="checkbox" name="considerations" id="c3" value="명예"><label for="c3">명예</label></div>
+                <div class="check-item"><input type="checkbox" name="considerations" id="c4" value="인간관계"><label for="c4">인간관계</label></div>
+                <div class="check-item"><input type="checkbox" name="considerations" id="c5" value="안정"><label for="c5">안정</label></div>
+                <div class="check-item"><input type="checkbox" name="considerations" id="c6" value="성공"><label for="c6">성공</label></div>
+            </div>
+        </div>
+
+        <div class="btn-group">
+            <button type="button" class="btn btn-outline" onclick="prevStep()">이전</button>
+            <button type="button" class="btn btn-primary" onclick="nextStep()">다음 단계</button>
+        </div>
+    </div>
+
+    <!-- Step 4: 이름 이미지 -->
+    <div class="step-content" data-step="4">
+        <div class="form-card">
+            <h2>4. 원하는 이름 이미지</h2>
+
+            <h3>4-1. 전체 느낌 (복수 선택)</h3>
+            <div class="check-group">
+                <div class="check-item"><input type="checkbox" name="desired_image" id="di1" value="세련됨"><label for="di1">세련됨</label></div>
+                <div class="check-item"><input type="checkbox" name="desired_image" id="di2" value="부드러움"><label for="di2">부드러움</label></div>
+                <div class="check-item"><input type="checkbox" name="desired_image" id="di3" value="강인함"><label for="di3">강인함</label></div>
+                <div class="check-item"><input type="checkbox" name="desired_image" id="di4" value="고급스러움"><label for="di4">고급스러움</label></div>
+                <div class="check-item"><input type="checkbox" name="desired_image" id="di5" value="귀여움"><label for="di5">귀여움</label></div>
+                <div class="check-item"><input type="checkbox" name="desired_image" id="di6" value="중성적"><label for="di6">중성적</label></div>
+                <div class="check-item"><input type="checkbox" name="desired_image" id="di7" value="전통적"><label for="di7">전통적</label></div>
+                <div class="check-item"><input type="checkbox" name="desired_image" id="di8" value="독특함"><label for="di8">독특함</label></div>
+            </div>
+
+            <h3>4-2. 선호 스타일</h3>
+            <div class="check-group">
+                <div class="check-item"><input type="checkbox" name="preferred_style" id="ps1" value="한글 이름"><label for="ps1">한글 이름</label></div>
+                <div class="check-item"><input type="checkbox" name="preferred_style" id="ps2" value="한자 이름" checked><label for="ps2">한자 이름</label></div>
+                <div class="check-item"><input type="checkbox" name="preferred_style" id="ps3" value="혼합형"><label for="ps3">혼합형</label></div>
+            </div>
+
+            <h3>4-3. 피하고 싶은 느낌</h3>
+            <div class="form-group">
+                <textarea name="avoid_feeling" placeholder="예: 촌스러움, 흔한 이름, 발음 어려움 등"></textarea>
+            </div>
+        </div>
+
+        <div class="btn-group">
+            <button type="button" class="btn btn-outline" onclick="prevStep()">이전</button>
+            <button type="button" class="btn btn-primary" onclick="nextStep()">다음 단계</button>
+        </div>
+    </div>
+
+    <!-- Step 5: 이름 구성 -->
+    <div class="step-content" data-step="5">
+        <div class="form-card">
+            <h2>5. 이름 구성 선호</h2>
+
+            <h3>5-1. 글자 수</h3>
+            <div class="check-group">
+                <div class="check-item"><input type="radio" name="name_length" id="nl2" value="2" checked><label for="nl2">2글자 (성 + 2자)</label></div>
+                <div class="check-item"><input type="radio" name="name_length" id="nl1" value="1"><label for="nl1">1글자 (성 + 1자)</label></div>
+                <div class="check-item"><input type="radio" name="name_length" id="nl0" value="2"><label for="nl0">상관없음</label></div>
+            </div>
+
+            <h3>5-2. 성씨 결합 고려</h3>
+            <div class="form-group">
+                <label>어울리는 느낌</label>
+                <input type="text" name="surname_feeling" placeholder="예: 부드럽게, 힘차게, 모던하게 등">
+            </div>
+
+            <h3>5-3. 돌림자 여부</h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <div class="check-group">
+                        <div class="check-item"><input type="radio" name="has_dollimja" id="dl_no" value="없음" checked><label for="dl_no">없음</label></div>
+                        <div class="check-item"><input type="radio" name="has_dollimja" id="dl_yes" value="있음"><label for="dl_yes">있음</label></div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>돌림자 (있을 경우)</label>
+                    <input type="text" name="dollimja" placeholder="돌림자 입력" maxlength="1">
+                </div>
+            </div>
+        </div>
+
+        <div class="btn-group">
+            <button type="button" class="btn btn-outline" onclick="prevStep()">이전</button>
+            <button type="button" class="btn btn-primary" onclick="nextStep()">다음 단계</button>
+        </div>
+    </div>
+
+    <!-- Step 6: 사용 환경 -->
+    <div class="step-content" data-step="6">
+        <div class="form-card">
+            <h2>6. 사용 환경 및 활용</h2>
+
+            <h3>6-1. 주 사용 목적</h3>
+            <div class="check-group">
+                <div class="check-item"><input type="checkbox" name="usage_purpose" id="up1" value="일상 생활" checked><label for="up1">일상 생활</label></div>
+                <div class="check-item"><input type="checkbox" name="usage_purpose" id="up2" value="사업/브랜딩"><label for="up2">사업/브랜딩</label></div>
+                <div class="check-item"><input type="checkbox" name="usage_purpose" id="up3" value="온라인 활동"><label for="up3">온라인 활동</label></div>
+            </div>
+
+            <h3>6-2. 해외 사용 여부</h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <div class="check-group">
+                        <div class="check-item"><input type="radio" name="overseas_use" id="ou_no" value="없음" checked><label for="ou_no">없음</label></div>
+                        <div class="check-item"><input type="radio" name="overseas_use" id="ou_yes" value="있음"><label for="ou_yes">있음</label></div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>발음 중요도</label>
+                    <div class="check-group">
+                        <div class="check-item"><input type="radio" name="pronunciation_importance" id="pi_h" value="높음"><label for="pi_h">높음</label></div>
+                        <div class="check-item"><input type="radio" name="pronunciation_importance" id="pi_m" value="보통" checked><label for="pi_m">보통</label></div>
+                        <div class="check-item"><input type="radio" name="pronunciation_importance" id="pi_l" value="낮음"><label for="pi_l">낮음</label></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="btn-group">
+            <button type="button" class="btn btn-outline" onclick="prevStep()">이전</button>
+            <button type="button" class="btn btn-primary" onclick="nextStep()">다음 단계</button>
+        </div>
+    </div>
+
+    <!-- Step 7: 이름 사용 계획 -->
+    <div class="step-content" data-step="7">
+        <div class="form-card">
+            <h2>7. 이름 사용 시 고려 요소</h2>
+            <div class="check-group">
+                <div class="check-item"><input type="checkbox" name="usage_factors" id="uf1" value="발음 쉬움"><label for="uf1">발음 쉬움</label></div>
+                <div class="check-item"><input type="checkbox" name="usage_factors" id="uf2" value="기억하기 쉬움"><label for="uf2">기억하기 쉬움</label></div>
+                <div class="check-item"><input type="checkbox" name="usage_factors" id="uf3" value="고급 이미지"><label for="uf3">고급 이미지</label></div>
+                <div class="check-item"><input type="checkbox" name="usage_factors" id="uf4" value="트렌디함"><label for="uf4">트렌디함</label></div>
+                <div class="check-item"><input type="checkbox" name="usage_factors" id="uf5" value="희귀성"><label for="uf5">희귀성</label></div>
+                <div class="check-item"><input type="checkbox" name="usage_factors" id="uf6" value="안정감"><label for="uf6">안정감</label></div>
+            </div>
+        </div>
+
+        <div class="form-card">
+            <h2>8. 사주/오행 기반 설계</h2>
+            <h3>8-1. 사주 반영 정도</h3>
+            <div class="check-group">
+                <div class="check-item"><input type="radio" name="saju_reflect" id="sr1" value="반드시 반영" checked><label for="sr1">반드시 반영</label></div>
+                <div class="check-item"><input type="radio" name="saju_reflect" id="sr2" value="참고만"><label for="sr2">참고만</label></div>
+                <div class="check-item"><input type="radio" name="saju_reflect" id="sr3" value="상관없음"><label for="sr3">상관없음</label></div>
+            </div>
+
+            <h3>8-2. 중요 요소 (복수 선택)</h3>
+            <div class="check-group">
+                <div class="check-item"><input type="checkbox" name="important_factors" id="if1" value="오행 균형" checked><label for="if1">오행 균형</label></div>
+                <div class="check-item"><input type="checkbox" name="important_factors" id="if2" value="음양 조화" checked><label for="if2">음양 조화</label></div>
+                <div class="check-item"><input type="checkbox" name="important_factors" id="if3" value="획수"><label for="if3">획수</label></div>
+                <div class="check-item"><input type="checkbox" name="important_factors" id="if4" value="발음" checked><label for="if4">발음</label></div>
+                <div class="check-item"><input type="checkbox" name="important_factors" id="if5" value="의미" checked><label for="if5">의미</label></div>
+            </div>
+        </div>
+
+        <div class="btn-group">
+            <button type="button" class="btn btn-outline" onclick="prevStep()">이전</button>
+            <button type="button" class="btn btn-primary" onclick="nextStep()">다음 단계</button>
+        </div>
+    </div>
+
+    <!-- Step 8: 최종 확인 & 제출 -->
+    <div class="step-content" data-step="8">
+        <div class="form-card">
+            <h2>9. 추가 요청 사항</h2>
+            <div class="form-group">
+                <textarea name="additional_request" rows="5" placeholder="자유롭게 작성해 주세요. 특별히 원하는 글자, 느낌, 참고할 이름 등"></textarea>
+            </div>
+        </div>
+
+        <div class="form-card" style="text-align:center; background: linear-gradient(135deg, #f5f2ed 0%, #fff 100%);">
+            <h2 style="border:none;">신청서 제출</h2>
+            <p style="color:var(--text-light); margin-bottom:1.5rem;">
+                입력하신 정보를 바탕으로 사주 분석 및 이름 3개를 생성하고,<br>
+                30페이지 분량의 상세 보고서를 작성합니다.
+            </p>
+            <button type="button" class="btn btn-accent" style="font-size:1.1rem; padding: 1rem 3rem;" onclick="submitForm()">
+                작명 분석 시작
+            </button>
+        </div>
+
+        <div class="btn-group">
+            <button type="button" class="btn btn-outline" onclick="prevStep()">이전</button>
+            <div></div>
+        </div>
+    </div>
+
+    </form>
+
+    <!-- ─── 결과 섹션 ─── -->
+    <div class="result-section" id="resultSection">
+        <!-- 사주 카드 -->
+        <div id="sajuCard"></div>
+
+        <!-- 이름 카드들 -->
+        <div id="nameCards"></div>
+
+        <!-- 보고서 생성 버튼 -->
+        <div style="text-align:center; margin: 2rem 0;" id="reportBtnArea">
+            <button type="button" class="btn btn-accent" style="font-size:1.1rem; padding:1rem 3rem;" onclick="generateReport()">
+                상세 보고서 생성 (AI 분석)
+            </button>
+            <p style="color:var(--text-light); font-size:0.85rem; margin-top:0.5rem;">
+                OpenAI GPT-4o 기반 30페이지 분량의 전문 분석 보고서를 생성합니다
+            </p>
+        </div>
+
+        <!-- 보고서 영역 -->
+        <div id="reportArea"></div>
+    </div>
+</div>
+
+<!-- 로딩 오버레이 -->
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-spinner"></div>
+    <div class="loading-text" id="loadingText">사주 분석 중...</div>
+    <div class="loading-sub" id="loadingSub">잠시만 기다려 주세요</div>
+    <div class="progress-bar-container">
+        <div class="progress-bar" id="progressBar"></div>
+    </div>
+</div>
+
+<!-- 프린트 버튼 -->
+<button class="btn btn-outline print-btn" onclick="window.print()" style="display:none;" id="printBtn">
+    인쇄 / PDF 저장
+</button>
+
+<script>
+// ─── 상태 관리 ───
+let currentStep = 1;
+const totalSteps = 8;
+let generatedNames = null;
+let formDataCache = null;
+
+// ─── 스텝 네비게이션 ───
+function updateStepIndicator() {
+    document.querySelectorAll('.step-dot').forEach(dot => {
+        const s = parseInt(dot.dataset.step);
+        dot.classList.remove('active', 'completed');
+        if (s === currentStep) dot.classList.add('active');
+        else if (s < currentStep) dot.classList.add('completed');
+    });
+    document.querySelectorAll('.step-content').forEach(el => {
+        el.classList.remove('active');
+        if (parseInt(el.dataset.step) === currentStep) el.classList.add('active');
+    });
+}
+
+function nextStep() {
+    if (currentStep === 1) {
+        // 필수 검증
+        const surname = document.getElementById('surname').value.trim();
+        const birthDate = document.getElementById('birthDate').value;
+        if (!surname) { alert('성씨를 입력해 주세요.'); return; }
+        if (!birthDate) { alert('생년월일을 입력해 주세요.'); return; }
+    }
+    if (currentStep < totalSteps) {
+        currentStep++;
+        // 개명이 아니면 2단계 건너뛰기
+        if (currentStep === 2) {
+            const rt = document.querySelector('input[name="request_type"]:checked').value;
+            if (rt !== '개명') {
+                currentStep = 3;
+            }
+        }
+        updateStepIndicator();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+}
+
+function prevStep() {
+    if (currentStep > 1) {
+        currentStep--;
+        if (currentStep === 2) {
+            const rt = document.querySelector('input[name="request_type"]:checked').value;
+            if (rt !== '개명') {
+                currentStep = 1;
+            }
+        }
+        updateStepIndicator();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+}
+
+function toggleTimeUnknown() {
+    const cb = document.getElementById('timeUnknown');
+    const input = document.getElementById('birthTime');
+    input.disabled = cb.checked;
+    if (cb.checked) input.value = '';
+}
+
+// ─── 폼 데이터 수집 ───
+function collectFormData() {
+    const form = document.getElementById('namingForm');
+    const data = {};
+
+    // 기본 필드
+    data.request_type = form.querySelector('input[name="request_type"]:checked')?.value || '신생아 작명';
+    data.surname = form.querySelector('input[name="surname"]').value.trim();
+    data.gender = form.querySelector('input[name="gender"]:checked')?.value || '남';
+    data.birth_date = form.querySelector('input[name="birth_date"]').value;
+    data.birth_time = document.getElementById('timeUnknown').checked ? '모름' : form.querySelector('input[name="birth_time"]').value;
+    data.birth_place = form.querySelector('input[name="birth_place"]')?.value || '';
+    data.name_length = form.querySelector('input[name="name_length"]:checked')?.value || '2';
+
+    // 체크박스 그룹
+    data.considerations = [...form.querySelectorAll('input[name="considerations"]:checked')].map(el => el.value);
+    data.desired_image = [...form.querySelectorAll('input[name="desired_image"]:checked')].map(el => el.value);
+    data.preferred_style = [...form.querySelectorAll('input[name="preferred_style"]:checked')].map(el => el.value);
+    data.usage_factors = [...form.querySelectorAll('input[name="usage_factors"]:checked')].map(el => el.value);
+    data.important_factors = [...form.querySelectorAll('input[name="important_factors"]:checked')].map(el => el.value);
+
+    // 텍스트 필드
+    data.avoid_feeling = form.querySelector('textarea[name="avoid_feeling"]')?.value || '';
+    data.additional_request = form.querySelector('textarea[name="additional_request"]')?.value || '';
+    data.dollimja = form.querySelector('input[name="dollimja"]')?.value || '';
+
+    // 개명 관련
+    if (data.request_type === '개명') {
+        data.current_name = form.querySelector('input[name="current_name_kr"]')?.value || '';
+        data.rename_reason = [...form.querySelectorAll('input[name="rename_reason"]:checked')].map(el => el.value).join(', ');
+    }
+
+    return data;
+}
+
+// ─── 폼 제출 ───
+async function submitForm() {
+    const data = collectFormData();
+    formDataCache = data;
+
+    showLoading('사주 분석 및 이름 생성 중...', '사주팔자를 계산하고 최적의 이름을 찾고 있습니다', 30);
+
+    try {
+        const response = await fetch('/api/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || result.error) {
+            hideLoading();
+            alert(result.error || '오류가 발생했습니다.');
+            return;
+        }
+
+        updateProgress(80);
+        generatedNames = result.names;
+
+        // 결과 표시
+        renderSajuCard(result.saju_result);
+        renderNameCards(result.names);
+
+        updateProgress(100);
+        setTimeout(() => {
+            hideLoading();
+            // 폼 숨기고 결과 표시
+            document.getElementById('stepIndicator').style.display = 'none';
+            document.querySelectorAll('.step-content').forEach(el => el.style.display = 'none');
+            document.getElementById('resultSection').classList.add('show');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }, 500);
+
+    } catch (err) {
+        hideLoading();
+        alert('서버 연결 오류: ' + err.message);
+    }
+}
+
+// ─── 로딩 관련 ───
+function showLoading(text, sub, progress) {
+    document.getElementById('loadingText').textContent = text;
+    document.getElementById('loadingSub').textContent = sub;
+    document.getElementById('progressBar').style.width = progress + '%';
+    document.getElementById('loadingOverlay').classList.add('show');
+}
+function hideLoading() {
+    document.getElementById('loadingOverlay').classList.remove('show');
+}
+function updateProgress(pct) {
+    document.getElementById('progressBar').style.width = pct + '%';
+}
+function updateLoadingText(text, sub) {
+    if (text) document.getElementById('loadingText').textContent = text;
+    if (sub) document.getElementById('loadingSub').textContent = sub;
+}
+
+// ─── 사주 카드 렌더 ───
+function renderSajuCard(saju) {
+    const oa = saju.ohaeng_analysis;
+    const pillars = [
+        { label: '시주(時柱)', data: saju.hour_pillar },
+        { label: '일주(日柱)', data: saju.day_pillar },
+        { label: '월주(月柱)', data: saju.month_pillar },
+        { label: '년주(年柱)', data: saju.year_pillar },
+    ];
+
+    let pillarHTML = '';
+    pillars.forEach(p => {
+        if (p.data) {
+            pillarHTML += `
+                <div class="saju-pillar">
+                    <div class="label">${p.label}</div>
+                    <div class="hanja">${p.data.stem}<br>${p.data.branch}</div>
+                    <div class="kr">${p.data.stem_kr}${p.data.branch_kr}</div>
+                    <div><span class="ohaeng-tag ohaeng-${p.data.stem_ohaeng}">${p.data.stem_ohaeng}</span>
+                    <span class="ohaeng-tag ohaeng-${p.data.branch_ohaeng}">${p.data.branch_ohaeng}</span></div>
+                </div>`;
+        } else {
+            pillarHTML += `
+                <div class="saju-pillar">
+                    <div class="label">${p.label}</div>
+                    <div class="hanja" style="color:rgba(255,255,255,0.3)">?<br>?</div>
+                    <div class="kr">미상</div>
+                </div>`;
+        }
+    });
+
+    const maxCount = Math.max(...Object.values(oa.count), 1);
+    let barHTML = '';
+    const ohaengOrder = ['木', '火', '土', '金', '水'];
+    const ohaengKr = {'木':'목','火':'화','土':'토','金':'금','水':'수'};
+    ohaengOrder.forEach(oh => {
+        const count = oa.count[oh];
+        const pct = (count / (maxCount + 1)) * 100;
+        barHTML += `
+            <div class="ohaeng-bar-row">
+                <div class="ohaeng-bar-label">${oh}(${ohaengKr[oh]})</div>
+                <div class="ohaeng-bar-track">
+                    <div class="ohaeng-bar-fill ${oh}" style="width:${pct}%"></div>
+                </div>
+                <div class="ohaeng-bar-count">${count}</div>
+            </div>`;
+    });
+
+    const yongsin = oa.yongsin;
+    const missingStr = yongsin.missing_ohaeng.length > 0
+        ? yongsin.missing_ohaeng.map((m, i) => `${m}(${yongsin.missing_ohaeng_kr[i]})`).join(', ')
+        : '없음';
+
+    document.getElementById('sajuCard').innerHTML = `
+        <div class="saju-card">
+            <h2>사주팔자 분석</h2>
+            <div class="saju-grid">${pillarHTML}</div>
+
+            <div style="text-align:center; margin:1rem 0;">
+                <span style="font-size:0.9rem; color:rgba(255,255,255,0.7);">일간(日干)</span>
+                <span style="font-size:1.3rem; font-weight:700; margin:0 0.5rem;">${oa.ilgan}(${oa.ilgan_kr})</span>
+                <span class="ohaeng-tag ohaeng-${oa.ilgan_ohaeng}" style="font-size:0.85rem;">${oa.ilgan_ohaeng}(${oa.ilgan_ohaeng_kr})</span>
+                <span style="margin-left:1rem; padding:0.2rem 0.8rem; background:rgba(255,255,255,0.15); border-radius:12px; font-size:0.85rem;">${yongsin.strength_desc}</span>
+            </div>
+
+            <div class="ohaeng-bar-section">${barHTML}</div>
+
+            <div class="yongsin-box">
+                <h4>용신(用神) / 희신(喜神)</h4>
+                <p><strong>용신:</strong> ${yongsin.yongsin}(${yongsin.yongsin_kr})
+                ${yongsin.huisin ? ` &nbsp;|&nbsp; <strong>희신:</strong> ${yongsin.huisin}(${yongsin.huisin_kr})` : ''}</p>
+                <p><strong>부족 오행:</strong> ${missingStr}</p>
+                <p style="margin-top:0.5rem; font-size:0.85rem; color:rgba(255,255,255,0.8);">${yongsin.description}</p>
+            </div>
+        </div>`;
+}
+
+// ─── 이름 카드 렌더 ───
+function renderNameCards(names) {
+    let html = '';
+    names.forEach((name, idx) => {
+        let hanjaBreakdown = '';
+        name.chars.forEach(c => {
+            hanjaBreakdown += `
+                <div class="hanja-char-box">
+                    <div class="big-char">${c.hanja}</div>
+                    <div class="char-reading">${c.hangul}</div>
+                    <div class="char-meaning">${c.meaning || ''}</div>
+                    <div class="char-info">${c.strokes}획 | ${c.ohaeng}</div>
+                </div>`;
+        });
+
+        const suri = name.suri;
+        const ratingClass = (r) => r === '대길' || r === '길' ? 'rating-good' : 'rating-bad';
+
+        html += `
+        <div class="name-card">
+            <span class="rank-badge">후보 ${idx + 1}</span>
+            <div class="name-hangul">${name.hangul}</div>
+            <div class="name-hanja">${name.hanja}</div>
+
+            <div class="hanja-breakdown">${hanjaBreakdown}</div>
+
+            <div class="name-detail-grid">
+                <div class="name-detail-item">
+                    <div class="label">오행 구성</div>
+                    <div class="value">${name.ohaeng_composition}</div>
+                </div>
+                <div class="name-detail-item">
+                    <div class="label">음양 구성</div>
+                    <div class="value">${(name.eumyang || []).join(' ')}</div>
+                </div>
+                <div class="name-detail-item">
+                    <div class="label">음성학 점수</div>
+                    <div class="value">${name.phonetic_score}/100</div>
+                </div>
+                <div class="name-detail-item">
+                    <div class="label">수리 등급</div>
+                    <div class="value">${suri.grade}</div>
+                </div>
+                <div class="name-detail-item">
+                    <div class="label">음령 오행</div>
+                    <div class="value">${name.eumryeong_flow || '-'} <small>(${name.eumryeong_score || 0}점)</small></div>
+                </div>
+                <div class="name-detail-item">
+                    <div class="label">자원 오행</div>
+                    <div class="value">${name.jawon_flow || '-'} <small>(${name.jawon_score || 0}점)</small></div>
+                </div>
+            </div>
+            ${(name.chung_warnings && name.chung_warnings.length > 0) ? `
+            <div style="margin-top:0.5rem; padding:0.5rem 0.8rem; background:#fff3cd; border-radius:6px; font-size:0.85rem; color:#856404;">
+                <strong>충(沖) 경고:</strong> ${name.chung_warnings.join('; ')}
+            </div>` : ''}
+            ${(name.hyeong_warnings && name.hyeong_warnings.length > 0) ? `
+            <div style="margin-top:0.5rem; padding:0.5rem 0.8rem; background:#fce4ec; border-radius:6px; font-size:0.85rem; color:#880e4f;">
+                <strong>형(刑) 경고:</strong> ${name.hyeong_warnings.join('; ')}
+            </div>` : ''}
+
+            <table class="suri-table">
+                <thead>
+                    <tr>
+                        <th>구분</th><th>수리</th><th>오행</th><th>길흉</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>원격(元格)</td>
+                        <td>${suri.won.value}</td>
+                        <td>${suri.won.ohaeng}</td>
+                        <td class="${ratingClass(suri.won.rating)}">${suri.won.rating}</td>
+                    </tr>
+                    <tr>
+                        <td>형격(亨格)</td>
+                        <td>${suri.hyeong.value}</td>
+                        <td>${suri.hyeong.ohaeng}</td>
+                        <td class="${ratingClass(suri.hyeong.rating)}">${suri.hyeong.rating}</td>
+                    </tr>
+                    <tr>
+                        <td>이격(利格)</td>
+                        <td>${suri.yi.value}</td>
+                        <td>${suri.yi.ohaeng}</td>
+                        <td class="${ratingClass(suri.yi.rating)}">${suri.yi.rating}</td>
+                    </tr>
+                    <tr>
+                        <td>정격(貞格)</td>
+                        <td>${suri.jeong.value}</td>
+                        <td>${suri.jeong.ohaeng}</td>
+                        <td class="${ratingClass(suri.jeong.rating)}">${suri.jeong.rating}</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div style="text-align:center; margin-top:1rem; padding:0.8rem; background:var(--bg); border-radius:8px;">
+                <span style="font-size:0.85rem; color:var(--text-light);">뜻풀이: </span>
+                <span style="font-size:0.9rem;">${name.meaning_summary}</span>
+            </div>
+        </div>`;
+    });
+
+    document.getElementById('nameCards').innerHTML = html;
+}
+
+// ─── 보고서 생성 (SSE 스트리밍) ───
+async function generateReport() {
+    if (!formDataCache || !generatedNames) {
+        alert('먼저 이름을 생성해 주세요.');
+        return;
+    }
+
+    // 보고서 버튼 숨기고 보고서 영역 초기화
+    document.getElementById('reportBtnArea').style.display = 'none';
+    const reportArea = document.getElementById('reportArea');
+    reportArea.innerHTML = '<h2 style="font-family:Noto Serif KR,serif; font-size:1.8rem; text-align:center; color:var(--primary); margin:3rem 0 2rem; padding-bottom:1rem; border-bottom:3px double var(--accent);">작명 분석 보고서</h2>';
+    reportArea.innerHTML += '<div id="reportProgress" style="text-align:center; padding:2rem; color:var(--primary);"><div class="loading-spinner" style="margin:0 auto 1rem;"></div><span id="reportProgressText">보고서 생성 준비 중...</span></div>';
+
+    const reportData = {
+        ...formDataCache,
+        names: generatedNames,
+    };
+
+    try {
+        const response = await fetch('/api/report-stream', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(reportData),
+        });
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n\n');
+            buffer = lines.pop() || '';
+
+            for (const line of lines) {
+                if (!line.startsWith('data: ')) continue;
+                try {
+                    const chunk = JSON.parse(line.substring(6));
+
+                    if (chunk.type === 'progress') {
+                        const progText = document.getElementById('reportProgressText');
+                        if (progText) progText.textContent = chunk.message;
+                    }
+                    else if (chunk.type === 'section') {
+                        // 프로그레스 표시 업데이트
+                        const progText = document.getElementById('reportProgressText');
+                        if (progText) progText.textContent = `${chunk.progress}% 완료...`;
+
+                        // 섹션 카드 추가
+                        const section = chunk.section;
+                        let nameCardHTML = '';
+                        if (section.name_card) {
+                            const nc = section.name_card;
+                            nameCardHTML = `
+                                <div style="background:var(--bg); border-radius:12px; padding:1.5rem; margin-bottom:1.5rem; text-align:center;">
+                                    <div style="font-family:Noto Serif KR,serif; font-size:2rem; color:var(--primary); letter-spacing:6px;">${nc.hangul}</div>
+                                    <div style="font-size:1.1rem; color:var(--text-light); margin-top:0.3rem;">${nc.hanja}</div>
+                                    <div style="margin-top:0.5rem; font-size:0.85rem; color:var(--text-light);">
+                                        오행: ${nc.ohaeng} | 음양: ${nc.eumyang}
+                                    </div>
+                                    ${nc.eumryeong_flow ? `<div style="margin-top:0.3rem; font-size:0.85rem; color:var(--text-light);">음령 오행: ${nc.eumryeong_flow}</div>` : ''}
+                                </div>`;
+                        }
+                        const contentHTML = simpleMarkdown(section.content);
+                        const sectionEl = document.createElement('div');
+                        sectionEl.className = 'report-section';
+                        sectionEl.style.opacity = '0';
+                        sectionEl.style.transition = 'opacity 0.5s ease';
+                        sectionEl.innerHTML = `
+                            <h2>${section.title}</h2>
+                            ${nameCardHTML}
+                            <div class="report-content">${contentHTML}</div>`;
+
+                        // 프로그레스 표시 앞에 삽입
+                        const prog = document.getElementById('reportProgress');
+                        if (prog) {
+                            reportArea.insertBefore(sectionEl, prog);
+                        } else {
+                            reportArea.appendChild(sectionEl);
+                        }
+                        // 페이드인 애니메이션
+                        requestAnimationFrame(() => { sectionEl.style.opacity = '1'; });
+                        sectionEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                    else if (chunk.type === 'complete') {
+                        // 프로그레스 표시 제거
+                        const prog = document.getElementById('reportProgress');
+                        if (prog) prog.remove();
+
+                        // 푸터 추가
+                        reportArea.innerHTML += `
+                            <div style="text-align:center; padding:2rem; color:var(--text-light); font-size:0.85rem;">
+                                <p style="font-family:Noto Serif KR,serif; font-size:1.1rem; color:var(--primary); margin-bottom:0.5rem;">바른이름연구소</p>
+                                <p>AI 사주명리 기반 프리미엄 작명 서비스</p>
+                                <p>본 보고서는 GPT-4o AI 분석 엔진으로 생성되었습니다.</p>
+                            </div>`;
+                        document.getElementById('printBtn').style.display = 'block';
+                    }
+                    else if (chunk.type === 'error') {
+                        const prog = document.getElementById('reportProgress');
+                        if (prog) prog.innerHTML = `<p style="color:var(--error);">오류: ${chunk.message}</p>`;
+                    }
+                } catch (e) {
+                    console.error('SSE parse error:', e);
+                }
+            }
+        }
+    } catch (err) {
+        const prog = document.getElementById('reportProgress');
+        if (prog) prog.innerHTML = `<p style="color:var(--error);">연결 오류: ${err.message}</p>`;
+        document.getElementById('reportBtnArea').style.display = 'block';
+    }
+}
+
+// ─── 보고서 렌더 ───
+function renderReport(report) {
+    let html = '<h2 style="font-family:Noto Serif KR,serif; font-size:1.8rem; text-align:center; color:var(--primary); margin:3rem 0 2rem; padding-bottom:1rem; border-bottom:3px double var(--accent);">작명 분석 보고서</h2>';
+
+    report.sections.forEach(section => {
+        // 이름 분석 섹션에는 이름 카드 표시
+        let nameCardHTML = '';
+        if (section.name_info) {
+            const ni = section.name_info;
+            nameCardHTML = `
+                <div style="background:var(--bg); border-radius:12px; padding:1.5rem; margin-bottom:1.5rem; text-align:center;">
+                    <div style="font-family:Noto Serif KR,serif; font-size:2rem; color:var(--primary); letter-spacing:6px;">${ni.hangul}</div>
+                    <div style="font-size:1.1rem; color:var(--text-light); margin-top:0.3rem;">${ni.hanja}</div>
+                    <div style="margin-top:0.5rem; font-size:0.85rem; color:var(--text-light);">
+                        오행: ${ni.ohaeng} | 음양: ${ni.eumyang}
+                    </div>
+                    ${ni.eumryeong_flow ? `<div style="margin-top:0.3rem; font-size:0.85rem; color:var(--text-light);">음령 오행: ${ni.eumryeong_flow}</div>` : ''}
+                </div>`;
+        }
+
+        // 마크다운을 HTML로 간단 변환
+        const contentHTML = simpleMarkdown(section.content);
+
+        html += `
+            <div class="report-section">
+                <h2>${section.title}</h2>
+                ${nameCardHTML}
+                <div class="report-content">${contentHTML}</div>
+            </div>`;
+    });
+
+    html += `
+        <div style="text-align:center; padding:2rem; color:var(--text-light); font-size:0.85rem;">
+            <p style="font-family:Noto Serif KR,serif; font-size:1.1rem; color:var(--primary); margin-bottom:0.5rem;">바른이름연구소</p>
+            <p>AI 사주명리 기반 프리미엄 작명 서비스</p>
+            <p>본 보고서는 GPT-4o AI 분석 엔진으로 생성되었습니다.</p>
+        </div>`;
+
+    document.getElementById('reportArea').innerHTML = html;
+}
+
+// ─── 간단한 마크다운 → HTML 변환 ───
+function simpleMarkdown(text) {
+    if (!text) return '';
+    let html = text
+        .replace(/### (.*?)$/gm, '<h3>$1</h3>')
+        .replace(/## (.*?)$/gm, '<h2>$1</h2>')
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/\n\n/g, '</p><p>')
+        .replace(/\n/g, '<br>');
+
+    // p 태그 감싸기
+    if (!html.startsWith('<h') && !html.startsWith('<p>')) {
+        html = '<p>' + html + '</p>';
+    }
+
+    return html;
+}
+
+// ─── 초기화 ───
+document.addEventListener('DOMContentLoaded', () => {
+    updateStepIndicator();
+});
+</script>
+
+</body>
+</html>

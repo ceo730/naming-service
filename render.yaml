@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: naming-service
+    runtime: python
+    buildCommand: pip install -r requirements.txt && mkdir -p fonts && curl -L -o fonts/NanumGothic-Regular.ttf "https://github.com/googlefonts/nanum/raw/main/fonts/NanumGothic-Regular.ttf" && curl -L -o fonts/NanumGothic-Bold.ttf "https://github.com/googlefonts/nanum/raw/main/fonts/NanumGothic-Bold.ttf"
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: PYTHON_VERSION
+        value: 3.12.0
