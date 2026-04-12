@@ -6,6 +6,7 @@
 """
 
 import os
+import time
 import openai
 import json
 from datetime import date
@@ -14,6 +15,44 @@ OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 MODEL = "gpt-4o"
 
 client = openai.OpenAI(api_key=OPENAI_API_KEY)
+
+# ─── 안정적 API 호출 (재시도 + 딜레이) ───
+_last_call_time = 0
+
+def _call_with_retry(system_prompt, user_prompt, max_tokens, min_length=200, max_retries=3):
+    """GPT 호출 + 응답이 너무 짧으면 자동 재시도, 호출 간 최소 3초 간격"""
+    global _last_call_time
+    for attempt in range(max_retries):
+        # 호출 간 최소 3초 간격
+        elapsed = time.time() - _last_call_time
+        if elapsed < 3:
+            time.sleep(3 - elapsed)
+        _last_call_time = time.time()
+
+        try:
+            response = client.chat.completions.create(
+                model=MODEL,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                temperature=0.7,
+                max_tokens=max_tokens,
+            )
+            content = response.choices[0].message.content or ''
+            # 정상 응답인지 확인 (충분히 길고 거부 아님)
+            is_refusal = content.startswith('죄송') or content.startswith('요청하신') or '작성할 수 없' in content
+            if len(content) >= min_length and not is_refusal:
+                return content
+            # 너무 짧거나 거부 응답이면 재시도
+            if attempt < max_retries - 1:
+                time.sleep(5 * (attempt + 1))
+        except Exception as e:
+            if attempt < max_retries - 1:
+                time.sleep(5 * (attempt + 1))
+            else:
+                raise
+    return content  # 마지막 시도 결과 반환
 
 
 def get_call_designation(form_data):
@@ -156,7 +195,7 @@ def generate_section_intro(saju_context, form_data, call_designation='우리 아
 
 【호칭 규칙】 대상을 부를 때 반드시 '{call_designation}'라고만 지칭하십시오. '신생아', '대상자', '아기', '자녀' 등의 표현은 절대 사용하지 마십시오.
 
-아래 네 가지 주제를 빠짐없이 다루되, 소제목이나 번호 없이 자연스럽게 이어지는 줄글(산문)로 작성하십시오. 전체 분량은 3000자 이상이어야 합니다.
+아래 네 가지 주제를 빠짐없이 다루되, 소제목이나 번호 없이 자연스럽게 이어지는 줄글(산문)로 작성하십시오. 각 주제를 충분히 상세하게 서술하여 전문적이고 풍성한 보고서를 만들어 주십시오.
 
 첫 번째 주제는 이 보고서가 어떤 과정을 거쳐 이름을 선별했는지에 대한 안내입니다. 사주명리학, 음성학, 수리학, 자원오행, 음령오행 등 적용한 학문적 기반을 전문가의 경험과 함께 자연스럽게 소개해 주십시오.
 
@@ -168,16 +207,7 @@ def generate_section_intro(saju_context, form_data, call_designation='우리 아
 
 각 주제마다 반드시 **서술형 소제목** 형식의 소제목을 달고 이어서 줄글 문단을 작성하십시오. 번호 목록, bullet point는 절대 사용하지 마십시오."""
 
-    response = client.chat.completions.create(
-        model=MODEL,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": prompt}
-        ],
-        temperature=0.7,
-        max_tokens=6000,
-    )
-    return response.choices[0].message.content
+    return _call_with_retry(SYSTEM_PROMPT, prompt, max_tokens=6000, min_length=500)
 
 
 def generate_name_analysis(saju_context, name_context, name_index, call_designation='우리 아이'):
@@ -190,7 +220,7 @@ def generate_name_analysis(saju_context, name_context, name_index, call_designat
 
 【호칭 규칙】 대상을 부를 때 반드시 '{call_designation}'라고만 지칭하십시오.
 
-이 이름에 대해 아래 주제들을 모두 빠짐없이 다루되, 소제목이나 번호 없이 자연스럽게 이어지는 줄글(산문)로 작성하십시오. 전체 분량은 4000자 이상이어야 합니다. 전문가로서 하나의 긴 에세이를 쓴다고 생각하십시오.
+이 이름에 대해 아래 주제들을 모두 빠짐없이 다루되, 소제목이나 번호 없이 자연스럽게 이어지는 줄글(산문)로 작성하십시오. 전문가로서 각 주제를 깊이 있고 풍부하게 서술하여, 고객이 이름의 가치를 충분히 이해할 수 있도록 해주십시오.
 
 이름의 첫인상과 전체적 이미지, 이 이름을 처음 들었을 때 떠오르는 느낌과 사회적 이미지로 시작하십시오. 이어서 발음의 특성과 장점을 분석하되, 초성·중성·종성의 조합이 어떤 소리의 질감을 만드는지, 부르기 편하고 기억에 남는 이유를 구체적으로 풀어쓰십시오.
 
@@ -204,16 +234,7 @@ def generate_name_analysis(saju_context, name_context, name_index, call_designat
 
 각 주제마다 반드시 **서술형 소제목** 형식의 소제목을 달고 이어서 줄글 문단을 작성하십시오. 번호 목록, bullet point, 이모지는 절대 사용하지 마십시오."""
 
-    response = client.chat.completions.create(
-        model=MODEL,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": prompt}
-        ],
-        temperature=0.7,
-        max_tokens=8000,
-    )
-    return response.choices[0].message.content
+    return _call_with_retry(SYSTEM_PROMPT, prompt, max_tokens=8000, min_length=500)
 
 
 def generate_final_comparison(saju_context, all_names_context, call_designation='우리 아이'):
@@ -226,7 +247,7 @@ def generate_final_comparison(saju_context, all_names_context, call_designation=
 
 【호칭 규칙】 대상을 부를 때 반드시 '{call_designation}'라고만 지칭하십시오.
 
-세 이름을 종합적으로 비교하여 최종 추천을 제시하되, 소제목이나 번호 없이 자연스럽게 이어지는 줄글(산문)로 작성하십시오. 전체 분량은 3000자 이상이어야 합니다.
+세 이름을 종합적으로 비교하여 최종 추천을 제시하되, 소제목이나 번호 없이 자연스럽게 이어지는 줄글(산문)로 작성하십시오. 각 비교 항목을 구체적이고 풍부하게 서술해 주십시오.
 
 먼저 세 이름의 수리오행, 음령 오행 흐름, 자원 오행 흐름, 발음, 한자 의미 등을 종합적으로 비교하여 안정성 측면에서 어떤 이름이 가장 뛰어난지 분석하십시오. 이어서 품격과 인상, 사회적 이미지 측면에서 세 이름을 비교하십시오.
 
@@ -238,16 +259,7 @@ def generate_final_comparison(saju_context, all_names_context, call_designation=
 
 각 주제마다 반드시 **서술형 소제목** 형식의 소제목을 달고 이어서 줄글 문단을 작성하십시오. 번호 목록, bullet point, 이모지는 절대 사용하지 마십시오."""
 
-    response = client.chat.completions.create(
-        model=MODEL,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": prompt}
-        ],
-        temperature=0.7,
-        max_tokens=6000,
-    )
-    return response.choices[0].message.content
+    return _call_with_retry(SYSTEM_PROMPT, prompt, max_tokens=6000, min_length=500)
 
 
 def generate_full_report(saju_result, names, form_data):

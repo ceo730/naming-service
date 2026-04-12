@@ -858,21 +858,42 @@ ${chars}
 [형(刑) 검사] ${(nameInfo.hyeong_warnings||[]).join('; ')||'없음'}`;
 }
 
-async function callGPT(apiKey, systemPrompt, userPrompt, maxTokens) {
-  const resp = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
-    body: JSON.stringify({
-      model: 'gpt-4o', temperature: 0.7, max_tokens: maxTokens || 6000,
-      messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }]
-    })
-  });
-  if (!resp.ok) {
-    const err = await resp.text();
-    throw new Error('OpenAI API 오류: ' + resp.status + ' - ' + err);
+let _lastCallTime = 0;
+async function callGPT(apiKey, systemPrompt, userPrompt, maxTokens, minLength) {
+  minLength = minLength || 200;
+  const maxRetries = 3;
+  let content = '';
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    // 호출 간 최소 3초 간격
+    const elapsed = Date.now() - _lastCallTime;
+    if (elapsed < 3000) await new Promise(r => setTimeout(r, 3000 - elapsed));
+    _lastCallTime = Date.now();
+    try {
+      const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+        body: JSON.stringify({
+          model: 'gpt-4o', temperature: 0.7, max_tokens: maxTokens || 6000,
+          messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }]
+        })
+      });
+      if (!resp.ok) {
+        const err = await resp.text();
+        if (attempt < maxRetries - 1) { await new Promise(r => setTimeout(r, 5000 * (attempt + 1))); continue; }
+        throw new Error('OpenAI API 오류: ' + resp.status + ' - ' + err);
+      }
+      const data = await resp.json();
+      content = (data.choices[0].message.content) || '';
+      const isRefusal = content.startsWith('죄송') || content.startsWith('요청하신') || content.includes('작성할 수 없');
+      if (content.length >= minLength && !isRefusal) return content;
+      // 너무 짧거나 거부 응답이면 재시도
+      if (attempt < maxRetries - 1) await new Promise(r => setTimeout(r, 5000 * (attempt + 1)));
+    } catch(e) {
+      if (attempt < maxRetries - 1) { await new Promise(r => setTimeout(r, 5000 * (attempt + 1))); continue; }
+      throw e;
+    }
   }
-  const data = await resp.json();
-  return data.choices[0].message.content;
+  return content;
 }
 
 async function generateFullReport(apiKey, sajuResult, names, formData, onProgress) {
@@ -887,7 +908,7 @@ ${sajuContext}
 
 【호칭 규칙】 대상을 부를 때 반드시 '${callDesig}'라고만 지칭하십시오.
 
-아래 네 가지 주제를 빠짐없이 다루되, 각 주제마다 **서술형 소제목** 형식의 소제목을 달고 줄글 문단을 작성하십시오. 전체 분량은 3000자 이상이어야 합니다.
+아래 네 가지 주제를 빠짐없이 다루되, 각 주제마다 **서술형 소제목** 형식의 소제목을 달고 줄글 문단을 작성하십시오. 각 주제를 충분히 상세하게 서술하여 전문적이고 풍성한 보고서를 만들어 주십시오.
 
 첫째: 보고서 안내 (사주명리학, 음성학, 수리학 등 적용 기반)
 둘째: 사주팔자 핵심 진단 (일간 특성, 각 주의 의미, 타고난 기질)
@@ -896,7 +917,7 @@ ${sajuContext}
 
 번호 목록, bullet point는 절대 사용하지 마십시오.`;
 
-  const intro = await callGPT(apiKey, REPORT_SYSTEM_PROMPT, introPrompt, 6000);
+  const intro = await callGPT(apiKey, REPORT_SYSTEM_PROMPT, introPrompt, 6000, 500);
   report.sections.push({ title: '사주 분석 및 작명 방향', content: intro, type: 'intro' });
   onProgress && onProgress(25, '도입부 완료');
 
@@ -913,9 +934,9 @@ ${nameCtx}
 
 【호칭 규칙】 '${callDesig}'라고만 지칭하십시오.
 
-이름의 첫인상, 발음 특성, 한자의 뜻과 역사적 용례, 사주 보완 효과(용신/희신), 음령 오행 흐름, 자원 오행 흐름, 성격/사회적 이미지, 생애주기별 적합성을 모두 다루십시오. 4000자 이상. 각 주제마다 **소제목**을 달고 줄글로 쓰십시오. 번호 목록, bullet point 금지.`;
+이름의 첫인상, 발음 특성, 한자의 뜻과 역사적 용례, 사주 보완 효과(용신/희신), 음령 오행 흐름, 자원 오행 흐름, 성격/사회적 이미지, 생애주기별 적합성을 모두 다루십시오. 전문가로서 각 주제를 깊이 있고 풍부하게 서술해 주십시오. 각 주제마다 **소제목**을 달고 줄글로 쓰십시오. 번호 목록, bullet point 금지.`;
 
-    const analysis = await callGPT(apiKey, REPORT_SYSTEM_PROMPT, namePrompt, 8000);
+    const analysis = await callGPT(apiKey, REPORT_SYSTEM_PROMPT, namePrompt, 8000, 500);
     report.sections.push({
       title: `후보 이름 ${i+1}: ${names[i].hangul}`, content: analysis, type: 'name_analysis',
       name_info: {
@@ -936,9 +957,9 @@ ${allNamesCtx}
 
 【호칭 규칙】 '${callDesig}'라고만 지칭하십시오.
 
-세 이름의 수리오행, 음령 오행, 자원 오행, 발음, 한자 의미를 종합 비교하고, 사주 보완력, 품격과 인상을 비교하십시오. 최종 추천 이름을 명확히 밝히고 이유를 설득력 있게 쓰십시오. 3000자 이상. **소제목** 형식 필수. 번호 목록 금지.`;
+세 이름의 수리오행, 음령 오행, 자원 오행, 발음, 한자 의미를 종합 비교하고, 사주 보완력, 품격과 인상을 비교하십시오. 최종 추천 이름을 명확히 밝히고 이유를 설득력 있게 쓰십시오. 각 비교 항목을 구체적이고 풍부하게 서술해 주십시오. **소제목** 형식 필수. 번호 목록 금지.`;
 
-  const comparison = await callGPT(apiKey, REPORT_SYSTEM_PROMPT, compPrompt, 6000);
+  const comparison = await callGPT(apiKey, REPORT_SYSTEM_PROMPT, compPrompt, 6000, 500);
   report.sections.push({ title: '최종 추천 및 선택 가이드', content: comparison, type: 'comparison' });
   onProgress && onProgress(100, '보고서 생성 완료!');
   return report;
