@@ -371,6 +371,114 @@ class NamingReportPDF(FPDF):
             self.cell(0, 7, f"수리종합: {suri['grade']}", align='C')
 
     # ═══════════════════════════════════════
+    # 대운 타임라인 시각화
+    # ═══════════════════════════════════════
+    def add_daeun_timeline(self, daeun_result):
+        """대운 흐름을 타임라인 바 차트로 시각화"""
+        if not daeun_result or not daeun_result.get('periods'):
+            return
+
+        self._add_body_page()
+        y = BODY_TOP + 8
+
+        # 제목
+        self.set_y(y)
+        self.set_font('Gothic', 'B', 16)
+        self.set_text_color(*C_TITLE)
+        self.cell(0, 10, '대운(大運) 흐름도', align='C')
+        y += 18
+
+        # 구분선
+        self.set_draw_color(180, 160, 130)
+        self.set_line_width(0.4)
+        self.line(60, y, 150, y)
+        y += 8
+
+        # 기본 정보
+        self.set_y(y)
+        self.set_font('Gothic', '', 10)
+        self.set_text_color(*C_BODY)
+        self.cell(0, 7, f"대운 방향: {daeun_result['direction']}  |  시작 나이: {daeun_result['start_age']}세  |  현재 나이: {daeun_result['current_age']}세", align='C')
+        y += 14
+
+        # 타임라인 바 차트
+        bar_x = 35
+        bar_w = 140
+        bar_h = 18
+        periods = daeun_result['periods']
+        current_idx = None
+        current_period = daeun_result.get('current_period')
+        if current_period:
+            current_idx = current_period.get('index')
+
+        for i, p in enumerate(periods):
+            # 배경 바
+            ohaeng = p['stem_ohaeng']
+            color = C_OHAENG.get(ohaeng, C_BODY)
+
+            # 현재 대운 강조
+            if current_idx is not None and i == current_idx:
+                self.set_draw_color(200, 50, 50)
+                self.set_line_width(0.8)
+                self.rect(bar_x - 1, y - 1, bar_w + 2, bar_h + 2)
+                self.set_line_width(0.2)
+
+            # 바 배경
+            self.set_fill_color(*(c + (255 - c) * 7 // 10 for c in color))
+            self.rect(bar_x, y, bar_w, bar_h, 'F')
+
+            # 전환점 마커
+            if p['is_turning_point']:
+                self.set_fill_color(255, 215, 0)
+                self.rect(bar_x, y, 4, bar_h, 'F')
+
+            # 텍스트: 나이 범위
+            self.set_xy(bar_x + 6, y + 2)
+            self.set_font('Gothic', 'B', 9)
+            self.set_text_color(*C_BODY)
+            self.cell(25, 7, f"{p['age_start']}-{p['age_end']}세")
+
+            # 간지
+            self.set_font('Gothic', 'B', 11)
+            self.set_text_color(*color)
+            self.cell(30, 7, f"{p['ganji']}({p['ganji_kr']})")
+
+            # 오행
+            self.set_font('Gothic', '', 9)
+            self.set_text_color(*C_BODY)
+            ohaeng_text = f"{p['stem_ohaeng']}/{p['branch_ohaeng']}"
+            self.cell(20, 7, ohaeng_text)
+
+            # 전환점 설명
+            if p['is_turning_point'] and p['turning_reason']:
+                self.set_font('Gothic', '', 8)
+                self.set_text_color(180, 50, 50)
+                reason_short = p['turning_reason'][:25] + '...' if len(p['turning_reason']) > 25 else p['turning_reason']
+                self.cell(0, 7, reason_short)
+
+            # 현재 대운 표시
+            if current_idx is not None and i == current_idx:
+                self.set_xy(bar_x + bar_w - 25, y + bar_h - 9)
+                self.set_font('Gothic', 'B', 8)
+                self.set_text_color(200, 50, 50)
+                self.cell(20, 7, '현재', align='R')
+
+            y += bar_h + 3
+
+            # 페이지 넘침 방지
+            if y > PH - BODY_BOTTOM - 20:
+                break
+
+        # 범례
+        y += 5
+        if y < PH - BODY_BOTTOM - 15:
+            self.set_y(y)
+            self.set_font('Gothic', '', 8)
+            self.set_text_color(*C_HEADER)
+            self.set_x(bar_x)
+            self.cell(0, 5, '■ 금색 표시 = 전환점  |  빨간 테두리 = 현재 대운')
+
+    # ═══════════════════════════════════════
     # 7. 산문 본문 출력 (내지 배경)
     # ═══════════════════════════════════════
     def write_prose(self, text):
@@ -501,14 +609,7 @@ class NamingReportPDF(FPDF):
 
 def create_naming_report_pdf(saju_result, names, report, form_data, output_path):
     """
-    완성된 보고서 데이터를 받아 디자인 에셋 기반 PDF 생성
-
-    Args:
-        saju_result: 사주 계산 결과
-        names: 생성된 이름 리스트
-        report: generate_full_report() 반환값
-        form_data: 폼 입력 데이터
-        output_path: 저장 경로
+    완성된 보고서 데이터를 받아 디자인 에셋 기반 PDF 생성 — 8섹션 구조
     """
     pdf = NamingReportPDF()
 
@@ -521,9 +622,23 @@ def create_naming_report_pdf(saju_result, names, report, form_data, output_path)
     # ── 3. 0장 주의사항 (고정 9페이지) ──
     pdf.add_static_pages()
 
-    # ── 4. 보고서 본문 ──
+    # ── 대운 데이터 추출 ──
+    daeun_result = report.get('daeun_result')
+
+    # ── 4. 보고서 본문 (8섹션) ──
     sections = report.get('sections', [])
-    chapter_idx = 1  # 챕터오프닝 이미지 인덱스
+    chapter_opening_map = {
+        'intro': 1,
+        'personality': 2,
+        'life_flow': 3,
+        'name_analysis_1': 4,
+        'name_analysis_2': 5,
+        'name_analysis_3': 3,
+        'comparison': 4,
+        'usage_guide': 5,
+    }
+
+    name_analysis_count = 0
 
     for sec in sections:
         sec_type = sec.get('type', '')
@@ -531,14 +646,24 @@ def create_naming_report_pdf(saju_result, names, report, form_data, output_path)
         name_info = sec.get('name_info')
 
         if sec_type == 'intro':
-            # 1장: 사주분석
-            pdf.add_chapter_opening(1)
+            pdf.add_chapter_opening(chapter_opening_map['intro'])
             pdf.add_saju_info(saju_result, form_data)
             pdf.write_prose(content)
 
+        elif sec_type == 'personality':
+            pdf.add_chapter_opening(chapter_opening_map['personality'])
+            pdf.write_prose(content)
+
+        elif sec_type == 'life_flow':
+            pdf.add_chapter_opening(chapter_opening_map['life_flow'])
+            if daeun_result:
+                pdf.add_daeun_timeline(daeun_result)
+            pdf.write_prose(content)
+
         elif sec_type == 'name_analysis':
-            chapter_idx += 1
-            ch_img_idx = min(chapter_idx, 5)
+            name_analysis_count += 1
+            ch_key = f'name_analysis_{name_analysis_count}'
+            ch_img_idx = chapter_opening_map.get(ch_key, 4)
             pdf.add_chapter_opening(ch_img_idx)
 
             if name_info:
@@ -555,7 +680,11 @@ def create_naming_report_pdf(saju_result, names, report, form_data, output_path)
             pdf.write_prose(content)
 
         elif sec_type == 'comparison':
-            pdf.add_chapter_opening(5)
+            pdf.add_chapter_opening(chapter_opening_map['comparison'])
+            pdf.write_prose(content)
+
+        elif sec_type == 'usage_guide':
+            pdf.add_chapter_opening(chapter_opening_map['usage_guide'])
             pdf.write_prose(content)
 
     # ── 5. 뒷표지 ──
