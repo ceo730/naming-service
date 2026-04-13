@@ -6,7 +6,7 @@ from flask import Flask, render_template, request, jsonify, Response
 import json
 import traceback
 
-from saju_engine import calculate_saju, format_saju_summary
+from saju_engine import calculate_saju, format_saju_summary, calculate_sipsin, calculate_daeun
 from name_generator import generate_names, get_surname_strokes
 from report_generator import generate_full_report, generate_report_streaming
 
@@ -55,6 +55,10 @@ def api_generate():
 
         # 2. 사주 요약
         saju_summary = format_saju_summary(saju_result)
+
+        # 십신/대운 계산
+        sipsin_result = calculate_sipsin(saju_result)
+        daeun_result = calculate_daeun(saju_result, gender, birth_year, birth_month, birth_day)
 
         # 3. 선호도 설정
         preferences = {
@@ -136,7 +140,7 @@ def api_generate():
         return jsonify({
             'success': True,
             'saju_summary': saju_summary,
-            'saju_result': serialize_saju(saju_result),
+            'saju_result': serialize_saju(saju_result, sipsin_result, daeun_result),
             'names': names_response,
         })
 
@@ -350,7 +354,7 @@ def reconstruct_names(names_data, surname, saju_result):
     return names
 
 
-def serialize_saju(saju_result):
+def serialize_saju(saju_result, sipsin_result=None, daeun_result=None):
     """사주 결과를 JSON 직렬화 가능한 형태로 변환"""
     result = {}
     for key in ['year_pillar', 'month_pillar', 'day_pillar', 'hour_pillar']:
@@ -370,6 +374,28 @@ def serialize_saju(saju_result):
         'ilgan_ohaeng_kr': oa['ilgan_ohaeng_kr'],
         'yongsin': oa['yongsin'],
     }
+    if sipsin_result:
+        result['sipsin'] = {
+            'sipsin_count': sipsin_result['sipsin_count'],
+            'prominent': sipsin_result['prominent'],
+            'lacking': sipsin_result['lacking'],
+        }
+    if daeun_result:
+        result['daeun'] = {
+            'direction': daeun_result['direction'],
+            'start_age': daeun_result['start_age'],
+            'current_age': daeun_result['current_age'],
+            'periods': [{
+                'age_start': p['age_start'],
+                'age_end': p['age_end'],
+                'ganji': p['ganji'],
+                'ganji_kr': p['ganji_kr'],
+                'stem_ohaeng': p['stem_ohaeng'],
+                'branch_ohaeng': p['branch_ohaeng'],
+                'is_turning_point': p['is_turning_point'],
+                'turning_reason': p['turning_reason'],
+            } for p in daeun_result['periods']],
+        }
     return result
 
 
