@@ -619,3 +619,202 @@ def calculate_suri_ohaeng(surname_strokes, name1_strokes, name2_strokes=None):
     result['grade'] = '최상' if score >= 90 else '상' if score >= 70 else '중' if score >= 50 else '하'
 
     return result
+
+
+# ─── 십신(十神) 분석 ───
+
+SIPSIN_NAMES = ['비견', '겁재', '식신', '상관', '편재', '정재', '편관', '정관', '편인', '정인']
+
+# 십신별 성격/적성 매핑
+SIPSIN_TRAITS = {
+    '비견': {
+        'keyword': '독립과 자존',
+        'traits': ['강한 자존심과 독립심으로 자기 주도적인 삶을 이끌어가는 성향', '동료의식이 강하여 같은 뜻을 가진 사람들과 깊은 유대를 형성', '경쟁 상황에서 물러서지 않는 끈기와 집념'],
+        'relationship': '대등한 관계를 추구하며, 자신의 영역을 침범받는 것을 꺼림. 존중받는다고 느낄 때 깊은 신뢰를 보임',
+        'career': ['독립 사업가', '프리랜서 전문직', '스포츠/경쟁 분야'],
+    },
+    '겁재': {
+        'keyword': '도전과 추진력',
+        'traits': ['도전적이고 과감한 추진력으로 새로운 일을 벌이는 데 주저하지 않음', '사교적이고 활동적이나 재물 관리에는 다소 무관심한 경향', '위기 상황에서 오히려 빛을 발하는 돌파력'],
+        'relationship': '넓은 인맥을 형성하지만, 깊이보다 넓이를 추구하여 가까운 사람에게 소홀할 수 있음',
+        'career': ['영업/마케팅', '벤처 창업', '이벤트/엔터테인먼트'],
+    },
+    '식신': {
+        'keyword': '표현과 감각',
+        'traits': ['풍부한 표현력과 예술적 감수성을 지니며, 삶의 즐거움을 추구', '음식, 예술, 문화 등 감각적 영역에서 뛰어난 안목', '여유롭고 낙천적인 성품으로 주변에 편안함을 전달'],
+        'relationship': '따뜻하고 배려심이 깊어 주변 사람들에게 인기가 많으며, 갈등 상황에서 중재자 역할',
+        'career': ['요리/식음료', '예술/디자인', '교육/상담'],
+    },
+    '상관': {
+        'keyword': '창의와 비판',
+        'traits': ['날카로운 관찰력과 비판적 사고력으로 기존 질서에 도전하는 혁신가 기질', '창의적 재능이 뛰어나지만, 권위에 대한 반발심이 강할 수 있음', '언변이 뛰어나고 자기표현에 거침이 없어 주목받는 존재'],
+        'relationship': '솔직하고 직설적인 소통을 선호하여 오해를 받기도 하지만, 진심을 알아주는 사람에게는 깊은 충성',
+        'career': ['작가/언론인', '변호사/평론가', '연구/개발 혁신'],
+    },
+    '편재': {
+        'keyword': '활동과 재물',
+        'traits': ['활동적이고 사교적이며 재물을 모으고 쓰는 순환에 능숙', '임기응변에 뛰어나고 여러 분야에 관심을 가지는 다재다능함', '현실 감각이 탁월하여 기회를 포착하는 눈이 밝음'],
+        'relationship': '사교의 달인으로 다양한 계층과 쉽게 어울리지만, 한 곳에 정착하기 어려운 면이 있음',
+        'career': ['투자/금융', '무역/유통', '부동산/자산관리'],
+    },
+    '정재': {
+        'keyword': '성실과 안정',
+        'traits': ['꼼꼼하고 계획적인 재물 관리 능력, 정직과 신용을 최고 가치로 여김', '안정적이고 착실한 삶을 추구하며, 급격한 변화보다 점진적 성장을 선호', '책임감이 강하고 맡은 일을 끝까지 완수하는 신뢰의 사람'],
+        'relationship': '한번 맺은 인연을 오래 유지하며, 가정과 가까운 사람에 대한 헌신이 강함',
+        'career': ['공무원/공기업', '회계/재무', '안정적 사업 운영'],
+    },
+    '편관': {
+        'keyword': '권위와 결단',
+        'traits': ['강한 리더십과 결단력으로 조직을 이끄는 카리스마', '정의감이 강하고 불의를 참지 못하는 강직한 성품', '목표가 명확하면 장애물을 돌파하는 추진력이 있으나, 때로 과격하거나 급한 면이 있음'],
+        'relationship': '상하관계가 명확한 환경에서 능력을 발휘하며, 자신을 따르는 사람에게는 깊은 보호 의식',
+        'career': ['군인/경찰/검찰', '경영자/관리직', '위기관리/컨설팅'],
+    },
+    '정관': {
+        'keyword': '품격과 질서',
+        'traits': ['예의 바르고 질서를 중시하며, 사회적 체면과 명예를 소중히 여김', '규칙과 원칙을 잘 지키는 모범적인 성품으로 신뢰를 쌓아감', '온화하면서도 단호한 면이 있어, 리더로서 존경을 받는 스타일'],
+        'relationship': '격식과 예의를 갖춘 관계를 선호하며, 신뢰할 수 있는 소수와 깊은 교류',
+        'career': ['법조인/행정가', '대기업 관리직', '외교/공공기관'],
+    },
+    '편인': {
+        'keyword': '직관과 탐구',
+        'traits': ['비범한 직관력과 영감으로 남들이 보지 못하는 것을 포착하는 능력', '독특한 사고방식과 비전통적 관심사로 자신만의 세계를 구축', '집중력이 깊지만 관심사가 자주 바뀌어 한 분야에 오래 머물기 어려운 면'],
+        'relationship': '혼자만의 시간을 중요시하며, 마음이 통하는 소수와만 깊이 교류하는 경향',
+        'career': ['연구원/학자', '점술/상담/심리학', '예술/철학 분야'],
+    },
+    '정인': {
+        'keyword': '학문과 관대',
+        'traits': ['학구적이고 지적 호기심이 풍부하여 꾸준히 배우고 성장하는 사람', '관대하고 포용력이 있어 후배나 아랫사람을 잘 이끌어주는 멘토 기질', '체면과 명분을 중시하며, 격조 높은 삶을 지향'],
+        'relationship': '든든한 조력자이자 스승 같은 존재로, 주변 사람들에게 안정감을 줌',
+        'career': ['교수/교사', '의사/한의사', '출판/학술 분야'],
+    },
+}
+
+
+def _get_sipsin(ilgan_ohaeng, ilgan_eumyang, target_ohaeng, target_eumyang):
+    """일간 기준으로 대상 천간/지지의 십신 판별"""
+    same_ey = (ilgan_eumyang == target_eumyang)
+
+    if ilgan_ohaeng == target_ohaeng:
+        return '비견' if same_ey else '겁재'
+
+    # 내가 생하는 오행 (식신/상관)
+    if OHAENG_SANGSAENG[ilgan_ohaeng] == target_ohaeng:
+        return '식신' if same_ey else '상관'
+
+    # 내가 극하는 오행 (편재/정재)
+    if OHAENG_SANGGEUK[ilgan_ohaeng] == target_ohaeng:
+        return '편재' if same_ey else '정재'
+
+    # 나를 생하는 오행 (편인/정인)
+    for k, v in OHAENG_SANGSAENG.items():
+        if v == ilgan_ohaeng and k == target_ohaeng:
+            return '편인' if same_ey else '정인'
+
+    # 나를 극하는 오행 (편관/정관)
+    for k, v in OHAENG_SANGGEUK.items():
+        if v == ilgan_ohaeng and k == target_ohaeng:
+            return '편관' if same_ey else '정관'
+
+    return '비견'  # fallback
+
+
+def calculate_sipsin(saju_result):
+    """
+    사주 전체에 대한 십신 분석.
+    일간을 기준으로 나머지 7자(천간3+지지4) + 장간에 대해 십신을 분류한다.
+    """
+    day_stem_idx = saju_result['day_stem_idx']
+    ilgan_ohaeng = CHEONGAN_OHAENG[day_stem_idx]
+    ilgan_eumyang = CHEONGAN_EUMYANG[day_stem_idx]
+
+    sipsin_count = {name: 0 for name in SIPSIN_NAMES}
+    sipsin_detail = []
+
+    # 천간 분석 (년간, 월간, 시간 — 일간은 자기 자신이므로 제외)
+    stem_positions = [
+        ('year_pillar', '년간', 'stem'),
+        ('month_pillar', '월간', 'stem'),
+        ('hour_pillar', '시간', 'stem'),
+    ]
+    for pillar_key, pos_name, _ in stem_positions:
+        p = saju_result.get(pillar_key)
+        if not p:
+            continue
+        stem = p['stem']
+        stem_idx = CHEONGAN.index(stem)
+        t_ohaeng = CHEONGAN_OHAENG[stem_idx]
+        t_eumyang = CHEONGAN_EUMYANG[stem_idx]
+        sipsin = _get_sipsin(ilgan_ohaeng, ilgan_eumyang, t_ohaeng, t_eumyang)
+        sipsin_count[sipsin] += 1
+        sipsin_detail.append({'position': pos_name, 'char': stem, 'sipsin': sipsin, 'ohaeng': t_ohaeng})
+
+    # 지지 분석 (년지, 월지, 일지, 시지)
+    branch_positions = [
+        ('year_pillar', '년지'),
+        ('month_pillar', '월지'),
+        ('day_pillar', '일지'),
+        ('hour_pillar', '시지'),
+    ]
+    for pillar_key, pos_name in branch_positions:
+        p = saju_result.get(pillar_key)
+        if not p:
+            continue
+        branch = p['branch']
+        branch_idx = JIJI.index(branch)
+        t_ohaeng = JIJI_OHAENG[branch_idx]
+        t_eumyang = JIJI_EUMYANG[branch_idx]
+        sipsin = _get_sipsin(ilgan_ohaeng, ilgan_eumyang, t_ohaeng, t_eumyang)
+        sipsin_count[sipsin] += 1
+        sipsin_detail.append({'position': pos_name, 'char': branch, 'sipsin': sipsin, 'ohaeng': t_ohaeng})
+
+    # 장간 분석
+    janggan_sipsin = {name: 0 for name in SIPSIN_NAMES}
+    pillars = ['year_pillar', 'month_pillar', 'day_pillar', 'hour_pillar']
+    for pillar_key in pillars:
+        p = saju_result.get(pillar_key)
+        if not p:
+            continue
+        branch = p['branch']
+        for jg_stem in JIJI_JANGGAN.get(branch, []):
+            jg_idx = CHEONGAN.index(jg_stem)
+            t_ohaeng = CHEONGAN_OHAENG[jg_idx]
+            t_eumyang = CHEONGAN_EUMYANG[jg_idx]
+            sipsin = _get_sipsin(ilgan_ohaeng, ilgan_eumyang, t_ohaeng, t_eumyang)
+            janggan_sipsin[sipsin] += 1
+
+    # 두드러진 십신 (천간+지지에서 2개 이상)
+    prominent = [(name, cnt) for name, cnt in sipsin_count.items() if cnt >= 2]
+    prominent.sort(key=lambda x: -x[1])
+
+    # 부족한 십신 (천간+지지에서 0개)
+    lacking = [name for name, cnt in sipsin_count.items() if cnt == 0]
+
+    # 성격/적성 도출
+    personality_traits = []
+    career_aptitude = []
+    relationship_pattern = ''
+
+    if prominent:
+        top_sipsin = prominent[0][0]
+        traits_data = SIPSIN_TRAITS.get(top_sipsin, {})
+        personality_traits = traits_data.get('traits', [])
+        career_aptitude = traits_data.get('career', [])
+        relationship_pattern = traits_data.get('relationship', '')
+    else:
+        # 가장 많은 십신 기반
+        max_sipsin = max(sipsin_count, key=sipsin_count.get)
+        traits_data = SIPSIN_TRAITS.get(max_sipsin, {})
+        personality_traits = traits_data.get('traits', [])
+        career_aptitude = traits_data.get('career', [])
+        relationship_pattern = traits_data.get('relationship', '')
+
+    return {
+        'sipsin_count': sipsin_count,
+        'janggan_sipsin': janggan_sipsin,
+        'sipsin_detail': sipsin_detail,
+        'prominent': prominent,
+        'lacking': lacking,
+        'personality_traits': personality_traits,
+        'career_aptitude': career_aptitude,
+        'relationship_pattern': relationship_pattern,
+    }
