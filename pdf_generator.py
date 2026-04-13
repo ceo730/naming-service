@@ -629,13 +629,13 @@ def create_naming_report_pdf(saju_result, names, report, form_data, output_path)
     sections = report.get('sections', [])
     chapter_opening_map = {
         'intro': 1,
-        'personality': 2,
-        'life_flow': 3,
-        'name_analysis_1': 4,
-        'name_analysis_2': 5,
-        'name_analysis_3': 3,
-        'comparison': 4,
-        'usage_guide': 5,
+        'personality': None,
+        'life_flow': None,
+        'name_analysis_1': 2,
+        'name_analysis_2': 3,
+        'name_analysis_3': 4,
+        'comparison': 5,
+        'usage_guide': None,
     }
 
     name_analysis_count = 0
@@ -645,17 +645,25 @@ def create_naming_report_pdf(saju_result, names, report, form_data, output_path)
         content = sec.get('content', '')
         name_info = sec.get('name_info')
 
+        ch_img_idx = None
+
         if sec_type == 'intro':
-            pdf.add_chapter_opening(chapter_opening_map['intro'])
+            ch_img_idx = chapter_opening_map.get('intro')
+            if ch_img_idx:
+                pdf.add_chapter_opening(ch_img_idx)
             pdf.add_saju_info(saju_result, form_data)
             pdf.write_prose(content)
 
         elif sec_type == 'personality':
-            pdf.add_chapter_opening(chapter_opening_map['personality'])
+            ch_img_idx = chapter_opening_map.get('personality')
+            if ch_img_idx:
+                pdf.add_chapter_opening(ch_img_idx)
             pdf.write_prose(content)
 
         elif sec_type == 'life_flow':
-            pdf.add_chapter_opening(chapter_opening_map['life_flow'])
+            ch_img_idx = chapter_opening_map.get('life_flow')
+            if ch_img_idx:
+                pdf.add_chapter_opening(ch_img_idx)
             if daeun_result:
                 pdf.add_daeun_timeline(daeun_result)
             pdf.write_prose(content)
@@ -663,8 +671,9 @@ def create_naming_report_pdf(saju_result, names, report, form_data, output_path)
         elif sec_type == 'name_analysis':
             name_analysis_count += 1
             ch_key = f'name_analysis_{name_analysis_count}'
-            ch_img_idx = chapter_opening_map.get(ch_key, 4)
-            pdf.add_chapter_opening(ch_img_idx)
+            ch_img_idx = chapter_opening_map.get(ch_key)
+            if ch_img_idx:
+                pdf.add_chapter_opening(ch_img_idx)
 
             if name_info:
                 card = {
@@ -680,11 +689,15 @@ def create_naming_report_pdf(saju_result, names, report, form_data, output_path)
             pdf.write_prose(content)
 
         elif sec_type == 'comparison':
-            pdf.add_chapter_opening(chapter_opening_map['comparison'])
+            ch_img_idx = chapter_opening_map.get('comparison')
+            if ch_img_idx:
+                pdf.add_chapter_opening(ch_img_idx)
             pdf.write_prose(content)
 
         elif sec_type == 'usage_guide':
-            pdf.add_chapter_opening(chapter_opening_map['usage_guide'])
+            ch_img_idx = chapter_opening_map.get('usage_guide')
+            if ch_img_idx:
+                pdf.add_chapter_opening(ch_img_idx)
             pdf.write_prose(content)
 
     # ── 5. 뒷표지 ──
