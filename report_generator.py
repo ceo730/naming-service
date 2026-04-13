@@ -373,7 +373,6 @@ def generate_final_comparison(saju_context, all_names_context, call_designation=
 
 def generate_section_personality(saju_context, sipsin_result, call_designation='우리 아이'):
     """섹션 2: 성격 심층 진단 — 십신 기반 개인화 분석"""
-    from saju_engine import SIPSIN_TRAITS
     sc = sipsin_result['sipsin_count']
     prominent = sipsin_result['prominent']
     lacking = sipsin_result['lacking']
