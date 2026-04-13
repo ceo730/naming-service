@@ -524,29 +524,56 @@ def generate_section_usage_guide(saju_context, daeun_result, recommended_name, c
 
 
 def generate_full_report(saju_result, names, form_data):
-    """전체 보고서 생성 (5회 API 호출)"""
-    saju_context = build_saju_context(saju_result, form_data)
+    """전체 보고서 생성 (8회 API 호출)"""
+    gender = form_data.get('gender', '남')
+    birth_date = form_data.get('birth_date', '')
+    parts = birth_date.split('-')
+    birth_year, birth_month, birth_day = int(parts[0]), int(parts[1]), int(parts[2])
+
+    sipsin_result = calculate_sipsin(saju_result)
+    daeun_result = calculate_daeun(saju_result, gender, birth_year, birth_month, birth_day)
+
+    saju_context = build_saju_context(saju_result, form_data, sipsin_result, daeun_result)
     call_designation = get_call_designation(form_data)
 
-    report = {'sections': [], 'status': 'generating', 'progress': 0, 'call_designation': call_designation}
+    report = {'sections': [], 'status': 'generating', 'progress': 0,
+              'call_designation': call_designation,
+              'sipsin_result': sipsin_result, 'daeun_result': daeun_result}
 
-    # 1단계: 도입부
-    report['progress'] = 10
+    # 섹션 1: 사주 분석 도입부
+    report['progress'] = 5
     intro = generate_section_intro(saju_context, form_data, call_designation)
     report['sections'].append({
         'title': '사주 분석 및 작명 방향',
         'content': intro,
         'type': 'intro'
     })
-    report['progress'] = 25
 
-    # 2~4단계: 이름별 분석
+    # 섹션 2: 성격 심층 진단
+    report['progress'] = 15
+    personality = generate_section_personality(saju_context, sipsin_result, call_designation)
+    report['sections'].append({
+        'title': '성격 심층 진단',
+        'content': personality,
+        'type': 'personality'
+    })
+
+    # 섹션 3: 인생 흐름 예측
+    report['progress'] = 25
+    life_flow = generate_section_life_flow(saju_context, daeun_result, call_designation)
+    report['sections'].append({
+        'title': '인생 흐름 예측',
+        'content': life_flow,
+        'type': 'life_flow'
+    })
+
+    # 섹션 4~6: 이름별 시나리오 분석
     all_names_context = ""
     for i, name in enumerate(names):
         name_context = build_name_context(name, i + 1)
         all_names_context += name_context + "\n"
 
-        analysis = generate_name_analysis(saju_context, name_context, i + 1, call_designation)
+        analysis = generate_name_analysis(saju_context, name_context, i + 1, call_designation, daeun_result)
         report['sections'].append({
             'title': f"후보 이름 {i + 1}: {name['hangul']}",
             'content': analysis,
@@ -561,14 +588,25 @@ def generate_full_report(saju_result, names, form_data):
                 'jawon_flow': name.get('jawon_flow', ''),
             }
         })
-        report['progress'] = 25 + (i + 1) * 20
+        report['progress'] = 25 + (i + 1) * 15
 
-    # 5단계: 최종 비교
-    comparison = generate_final_comparison(saju_context, all_names_context, call_designation)
+    # 섹션 7: 최종 비교·추천
+    report['progress'] = 80
+    comparison = generate_final_comparison(saju_context, all_names_context, call_designation, daeun_result)
     report['sections'].append({
         'title': '최종 추천 및 선택 가이드',
         'content': comparison,
         'type': 'comparison'
+    })
+
+    # 섹션 8: 이름 사용 가이드
+    report['progress'] = 90
+    recommended_name = names[0]['hangul'] if names else ''
+    usage_guide = generate_section_usage_guide(saju_context, daeun_result, recommended_name, call_designation)
+    report['sections'].append({
+        'title': '이름 사용 가이드',
+        'content': usage_guide,
+        'type': 'usage_guide'
     })
 
     report['status'] = 'complete'
@@ -577,25 +615,50 @@ def generate_full_report(saju_result, names, form_data):
 
 
 def generate_report_streaming(saju_result, names, form_data):
-    """스트리밍 보고서 생성 (제너레이터)"""
-    saju_context = build_saju_context(saju_result, form_data)
+    """스트리밍 보고서 생성 (제너레이터) — 8섹션"""
+    gender = form_data.get('gender', '남')
+    birth_date = form_data.get('birth_date', '')
+    parts = birth_date.split('-')
+    birth_year, birth_month, birth_day = int(parts[0]), int(parts[1]), int(parts[2])
+
+    sipsin_result = calculate_sipsin(saju_result)
+    daeun_result = calculate_daeun(saju_result, gender, birth_year, birth_month, birth_day)
+
+    saju_context = build_saju_context(saju_result, form_data, sipsin_result, daeun_result)
     call_designation = get_call_designation(form_data)
 
-    yield {'type': 'progress', 'progress': 10, 'message': '사주 분석 보고서 작성 중...'}
-
+    # 섹션 1: 사주 분석 도입부
+    yield {'type': 'progress', 'progress': 5, 'message': '사주 분석 보고서 작성 중...'}
     intro = generate_section_intro(saju_context, form_data, call_designation)
     yield {
-        'type': 'section', 'progress': 25,
+        'type': 'section', 'progress': 12,
         'section': {'title': '사주 분석 및 작명 방향', 'content': intro, 'section_type': 'intro'}
     }
 
+    # 섹션 2: 성격 심층 진단
+    yield {'type': 'progress', 'progress': 12, 'message': '성격 심층 진단 분석 중...'}
+    personality = generate_section_personality(saju_context, sipsin_result, call_designation)
+    yield {
+        'type': 'section', 'progress': 25,
+        'section': {'title': '성격 심층 진단', 'content': personality, 'section_type': 'personality'}
+    }
+
+    # 섹션 3: 인생 흐름 예측
+    yield {'type': 'progress', 'progress': 25, 'message': '인생 흐름 예측 분석 중...'}
+    life_flow = generate_section_life_flow(saju_context, daeun_result, call_designation)
+    yield {
+        'type': 'section', 'progress': 35,
+        'section': {'title': '인생 흐름 예측', 'content': life_flow, 'section_type': 'life_flow'}
+    }
+
+    # 섹션 4~6: 이름별 시나리오 분석
     all_names_context = ""
     for i, name in enumerate(names):
-        yield {'type': 'progress', 'progress': 25 + i * 20, 'message': f'후보 이름 {i+1} "{name["hangul"]}" 분석 중...'}
+        yield {'type': 'progress', 'progress': 35 + i * 15, 'message': f'후보 이름 {i+1} "{name["hangul"]}" 분석 중...'}
 
         name_context = build_name_context(name, i + 1)
         all_names_context += name_context + "\n"
-        analysis = generate_name_analysis(saju_context, name_context, i + 1, call_designation)
+        analysis = generate_name_analysis(saju_context, name_context, i + 1, call_designation, daeun_result)
 
         name_card = {
             'hangul': name['hangul'],
@@ -609,15 +672,26 @@ def generate_report_streaming(saju_result, names, form_data):
         }
 
         yield {
-            'type': 'section', 'progress': 25 + (i + 1) * 20,
+            'type': 'section', 'progress': 35 + (i + 1) * 15,
             'section': {'title': f'후보 이름 {i + 1}: {name["hangul"]}', 'content': analysis,
                         'section_type': 'name_analysis', 'name_card': name_card}
         }
 
-    yield {'type': 'progress', 'progress': 90, 'message': '최종 비교 분석 작성 중...'}
-    comparison = generate_final_comparison(saju_context, all_names_context, call_designation)
+    # 섹션 7: 최종 비교·추천
+    yield {'type': 'progress', 'progress': 82, 'message': '최종 비교 분석 작성 중...'}
+    comparison = generate_final_comparison(saju_context, all_names_context, call_designation, daeun_result)
     yield {
-        'type': 'section', 'progress': 100,
+        'type': 'section', 'progress': 90,
         'section': {'title': '최종 추천 및 선택 가이드', 'content': comparison, 'section_type': 'comparison'}
     }
+
+    # 섹션 8: 이름 사용 가이드
+    yield {'type': 'progress', 'progress': 90, 'message': '이름 사용 가이드 작성 중...'}
+    recommended_name = names[0]['hangul'] if names else ''
+    usage_guide = generate_section_usage_guide(saju_context, daeun_result, recommended_name, call_designation)
+    yield {
+        'type': 'section', 'progress': 100,
+        'section': {'title': '이름 사용 가이드', 'content': usage_guide, 'section_type': 'usage_guide'}
+    }
+
     yield {'type': 'complete', 'progress': 100, 'message': '보고서 생성 완료!'}
