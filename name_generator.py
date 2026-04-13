@@ -746,6 +746,10 @@ def generate_names(surname, gender, saju_result, preferences=None, count=3):
                     suri = calculate_suri_ohaeng(surname_strokes, h1['strokes'])
                     if suri['total_score'] < 50:
                         continue
+                    # 수리 개별 격에 흉이 하나라도 있으면 제외
+                    has_hyung = any(suri[k]['rating'][0] == '흉' for k in ['won', 'hyeong', 'yi', 'jeong'])
+                    if has_hyung:
+                        continue
                     ph_score, ph_detail = evaluate_phonetics(surname, [h1['hangul']])
                     eumryeong_score, eumryeong_detail, eumryeong_flow = evaluate_eumryeong_ohaeng(surname, [h1['hangul']])
                     oh_bonus = 8 if (oh1 and h1['ohaeng'] in oh1) else 0
@@ -782,6 +786,10 @@ def generate_names(surname, gender, saju_result, preferences=None, count=3):
                     # 수리오행 검증
                     suri = calculate_suri_ohaeng(surname_strokes, h1['strokes'], h2['strokes'])
                     if suri['total_score'] < 50:
+                        continue
+                    # 수리 개별 격에 흉이 하나라도 있으면 제외
+                    has_hyung = any(suri[k]['rating'][0] == '흉' for k in ['won', 'hyeong', 'yi', 'jeong'])
+                    if has_hyung:
                         continue
 
                     # 음성학 검증
