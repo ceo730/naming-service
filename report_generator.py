@@ -348,6 +348,158 @@ def generate_final_comparison(saju_context, all_names_context, call_designation=
     return _call_with_retry(SYSTEM_PROMPT, prompt, max_tokens=6000, min_length=500)
 
 
+def generate_section_personality(saju_context, sipsin_result, call_designation='우리 아이'):
+    """섹션 2: 성격 심층 진단 — 십신 기반 개인화 분석"""
+    from saju_engine import SIPSIN_TRAITS
+    sc = sipsin_result['sipsin_count']
+    prominent = sipsin_result['prominent']
+    lacking = sipsin_result['lacking']
+
+    prominent_info = ''
+    if prominent:
+        for name, cnt in prominent:
+            traits_data = SIPSIN_TRAITS.get(name, {})
+            prominent_info += f"\n- {name}이(가) {cnt}개로 두드러짐: 키워드 '{traits_data.get('keyword', '')}'"
+            prominent_info += f"\n  성격 경향: {'; '.join(traits_data.get('traits', [])[:2])}"
+    else:
+        max_name = max(sc, key=sc.get)
+        traits_data = SIPSIN_TRAITS.get(max_name, {})
+        prominent_info = f"\n- {max_name}이(가) {sc[max_name]}개로 가장 많음: 키워드 '{traits_data.get('keyword', '')}'"
+
+    lacking_info = ''
+    if lacking:
+        lacking_details = []
+        for name in lacking[:3]:
+            traits_data = SIPSIN_TRAITS.get(name, {})
+            lacking_details.append(f"{name}({traits_data.get('keyword', '')})")
+        lacking_info = f"부족한 십신: {', '.join(lacking_details)}"
+
+    prompt = f"""{saju_context}
+
+【호칭 규칙】 대상을 부를 때 반드시 '{call_designation}'라고만 지칭하십시오. '필자', '제가', '나는' 등 개인을 주어로 쓰지 마십시오.
+
+다음은 {call_designation}의 십신(十神) 분석 결과입니다:
+{prominent_info}
+{lacking_info}
+
+이 데이터를 바탕으로 {call_designation}의 성격을 심층 진단하는 보고서 섹션을 작성하십시오.
+
+【필수 포함 내용 — 빠짐없이 서술】
+
+첫째, 이 사주에서 가장 두드러진 십신을 근거로 {call_designation}의 핵심 성격 특성 3가지를 서술하십시오. 각 특성이 일상에서 어떻게 발현되는지 구체적인 상황 예시를 반드시 포함하십시오. 예를 들어 "회의에서 자신의 의견을 먼저 제시하기보다 다른 사람의 이야기를 끝까지 들은 후 핵심을 정리하는 스타일"처럼 구체적이어야 합니다.
+
+둘째, {call_designation}이 대인관계에서 보이는 전형적인 관계 패턴 2가지를 서술하십시오. 친구, 연인, 직장동료 등 구체적 관계 유형별로 다르게 나타나는 양상을 포함하십시오.
+
+셋째, {call_designation}의 사주가 특히 강점을 보이는 직업 영역 3가지와 그 이유를 십신 구조에 근거하여 분석하십시오. 단순 나열이 아니라 "왜 이 사주가 이 분야에 적합한지"를 논리적으로 풀어쓰십시오.
+
+넷째, 부족한 십신으로 인해 보완이 필요한 영역을 서술하고, 이것이 이름 선택에 어떤 방향을 제시하는지 연결하십시오.
+
+각 주제마다 반드시 **서술형 소제목** 형식의 소제목을 달고 이어서 줄글 문단을 작성하십시오."""
+
+    return _call_with_retry(SYSTEM_PROMPT, prompt, max_tokens=6000, min_length=500)
+
+
+def generate_section_life_flow(saju_context, daeun_result, call_designation='우리 아이'):
+    """섹션 3: 인생 흐름 예측 — 대운 기반 과거 맞추기 + 미래 전환점"""
+    current_age = daeun_result['current_age']
+    current_period = daeun_result.get('current_period')
+    past_turning = daeun_result.get('past_turning_points', [])
+    future_turning = daeun_result.get('future_turning_points', [])
+
+    daeun_timeline = ''
+    for p in daeun_result['periods']:
+        marker = ''
+        if p['is_turning_point']:
+            marker = f' [전환점: {p["turning_reason"]}]'
+        if current_period and p['index'] == current_period['index']:
+            marker += ' <- 현재'
+        daeun_timeline += f"\n  {p['age_start']}-{p['age_end']}세: {p['ganji']}({p['ganji_kr']}) 오행={p['stem_ohaeng']}/{p['branch_ohaeng']}{marker}"
+
+    past_events = ''
+    if past_turning:
+        for pt in past_turning:
+            past_events += f"\n  - {pt['age_start']}세 전후: {pt['turning_reason']}"
+    else:
+        past_events = '\n  (과거 대운에서 뚜렷한 전환점 없음 — 비교적 안정적 흐름)'
+
+    future_events = ''
+    if future_turning:
+        for ft in future_turning[:3]:
+            future_events += f"\n  - {ft['age_start']}세경: {ft['turning_reason']}"
+    else:
+        future_events = '\n  (향후 대운이 안정적 흐름을 보임)'
+
+    prompt = f"""{saju_context}
+
+【호칭 규칙】 대상을 부를 때 반드시 '{call_designation}'라고만 지칭하십시오. '필자', '제가', '나는' 등 개인을 주어로 쓰지 마십시오.
+
+다음은 {call_designation}의 대운(大運) 분석 결과입니다:
+방향: {daeun_result['direction']} / 시작나이: {daeun_result['start_age']}세 / 현재 나이: {current_age}세
+
+[대운 타임라인]{daeun_timeline}
+
+[과거 주요 전환점]{past_events}
+
+[미래 주요 전환점]{future_events}
+
+이 데이터를 바탕으로 {call_designation}의 인생 흐름을 예측하는 보고서 섹션을 작성하십시오.
+
+【필수 포함 내용 — 빠짐없이 서술】
+
+첫째, 대운의 전체적 흐름을 개관하십시오. {daeun_result['direction']} 대운이 어떤 의미를 갖는지, 전체 인생의 큰 그림을 그려주십시오.
+
+둘째, 과거 전환점에 대해 서술하십시오. 대운의 오행 변화가 사주 원국과 어떻게 작용하여 변화를 가져왔는지 구체적으로 분석하십시오. 과거 전환점이 없으면 안정적 흐름의 의미를 설명하십시오.
+
+셋째, 현재 대운의 의미를 깊이 있게 분석하십시오. 지금 시기에 어떤 에너지가 작용하고 있으며, 현재의 고민이나 상황과 어떻게 연결되는지 서술하십시오.
+
+넷째, 향후 전환점과 기회를 예측하십시오. 다가올 대운의 오행이 사주에 어떤 변화를 가져올지, 어떤 준비가 필요한지 구체적으로 안내하십시오.
+
+다섯째, 이러한 인생 흐름에서 이름이 갖는 의미를 연결하십시오. 좋은 이름이 대운의 부정적 영향을 완화하고 긍정적 영향을 증폭시킬 수 있다는 점을 자연스럽게 풀어쓰십시오.
+
+각 주제마다 반드시 **서술형 소제목** 형식의 소제목을 달고 이어서 줄글 문단을 작성하십시오."""
+
+    return _call_with_retry(SYSTEM_PROMPT, prompt, max_tokens=6000, min_length=500)
+
+
+def generate_section_usage_guide(saju_context, daeun_result, recommended_name, call_designation='우리 아이'):
+    """섹션 8: 이름 사용 가이드 — 프리미엄 의식(ritual) 연출"""
+    current_period = daeun_result.get('current_period', {})
+
+    next_good_period = ''
+    for p in daeun_result['periods']:
+        if p['age_start'] > daeun_result['current_age'] and not p.get('turning_reason', '').startswith('기신'):
+            next_good_period = f"{p['age_start']}세({p['ganji']} {p['ganji_kr']})"
+            break
+
+    prompt = f"""{saju_context}
+
+【호칭 규칙】 대상을 부를 때 반드시 '{call_designation}'라고만 지칭하십시오. '필자', '제가', '나는' 등 개인을 주어로 쓰지 마십시오.
+
+최종 추천된 이름은 '{recommended_name}'입니다.
+현재 대운: {current_period.get('ganji', '')}({current_period.get('ganji_kr', '')}) {current_period.get('stem_ohaeng', '')}/{current_period.get('branch_ohaeng', '')}
+향후 좋은 시기: {next_good_period}
+
+이 이름을 실제로 사용하기 시작할 때 필요한 종합 가이드를 작성하십시오. 이 섹션은 고객이 이름 변경 후 실제로 참고할 실용적 안내서입니다.
+
+【필수 포함 내용 — 빠짐없이 서술】
+
+첫째, 개명 최적 시기를 안내하십시오. 현재 대운과 향후 대운의 흐름을 고려하여 이름 변경에 가장 적합한 시기를 제안하고, 그 이유를 사주학적으로 설명하십시오. 계절, 월, 요일 등 구체적 시기까지 안내하십시오.
+
+둘째, 이름 첫 사용 의식을 안내하십시오. 새 이름으로 처음 서명하는 순간의 의미, 공적 문서 변경 순서(주민등록→운전면허→여권→은행 등), 첫 사용 시 마음가짐을 서술하십시오.
+
+셋째, 주변 알림 전략을 안내하십시오. 가족 → 가까운 지인 → 직장/학교 → 공적 관계 순으로 새 이름을 알리는 구체적 방법과 타이밍을 제안하십시오.
+
+넷째, 이 사주에서 특별히 피해야 할 금기사항을 안내하십시오. 부족한 오행이나 충(沖) 관계를 고려한 방위, 색상, 습관 등 실생활에서 주의할 점을 구체적으로 서술하십시오.
+
+다섯째, 이름 변경 후 변화 흐름을 예측하십시오. 30일 후, 3개월 후, 1년 후, 3년 후 각각 어떤 변화를 기대할 수 있는지 단계별로 서술하십시오. 막연한 "좋아질 것"이 아니라, 오행 보완 효과가 구체적으로 어떻게 발현되는지 풀어쓰십시오.
+
+여섯째, 이름의 에너지를 극대화하는 생활 습관을 3가지 이상 제안하십시오. 이름에 담긴 오행과 연결하여, 색상 활용, 방위 활용, 계절별 주의점 등 실천 가능한 조언을 제시하십시오.
+
+각 주제마다 반드시 **서술형 소제목** 형식의 소제목을 달고 이어서 줄글 문단을 작성하십시오."""
+
+    return _call_with_retry(SYSTEM_PROMPT, prompt, max_tokens=8000, min_length=500)
+
+
 def generate_full_report(saju_result, names, form_data):
     """전체 보고서 생성 (5회 API 호출)"""
     saju_context = build_saju_context(saju_result, form_data)
