@@ -818,3 +818,155 @@ def calculate_sipsin(saju_result):
         'career_aptitude': career_aptitude,
         'relationship_pattern': relationship_pattern,
     }
+
+
+# ─── 대운(大運) 계산 ───
+
+def calculate_daeun(saju_result, gender, birth_year, birth_month, birth_day):
+    """
+    대운 계산 — 월주에서 순행/역행으로 10년 단위 운의 흐름.
+
+    Args:
+        saju_result: calculate_saju() 반환값
+        gender: '남' or '여'
+        birth_year, birth_month, birth_day: 양력 생년월일
+    Returns:
+        dict with direction, start_age, periods[], current_period, turning_points
+    """
+    # 1. 순행/역행 결정
+    year_stem = saju_result['year_pillar']['stem']
+    year_stem_idx = CHEONGAN.index(year_stem)
+    year_eumyang = CHEONGAN_EUMYANG[year_stem_idx]
+
+    if (gender == '남' and year_eumyang == '양') or (gender == '여' and year_eumyang == '음'):
+        direction = '순행'
+    else:
+        direction = '역행'
+
+    # 2. 대운 시작 나이 계산
+    saju_month = get_saju_month(birth_year, birth_month, birth_day)
+
+    if direction == '순행':
+        # 다음 절기까지 일수
+        next_jeolgi_idx = saju_month % 12
+        next_jeolgi_solar_month, next_jeolgi_day = get_jeolgi_date(birth_year, next_jeolgi_idx)
+        if next_jeolgi_solar_month < birth_month or (next_jeolgi_solar_month == birth_month and next_jeolgi_day <= birth_day):
+            target_year = birth_year + 1
+        else:
+            target_year = birth_year
+        target_jdn = calc_jdn(target_year, next_jeolgi_solar_month, next_jeolgi_day)
+    else:
+        # 이전 절기까지 일수
+        prev_jeolgi_idx = (saju_month - 1) % 12
+        prev_jeolgi_solar_month, prev_jeolgi_day = get_jeolgi_date(birth_year, prev_jeolgi_idx)
+        if prev_jeolgi_solar_month > birth_month or (prev_jeolgi_solar_month == birth_month and prev_jeolgi_day >= birth_day):
+            target_year = birth_year - 1
+        else:
+            target_year = birth_year
+        target_jdn = calc_jdn(target_year, prev_jeolgi_solar_month, prev_jeolgi_day)
+
+    birth_jdn = calc_jdn(birth_year, birth_month, birth_day)
+    day_diff = abs(target_jdn - birth_jdn)
+    start_age = max(1, round(day_diff / 3))
+
+    # 3. 대운 기둥 생성 (8개 = 80년)
+    month_pillar = saju_result['month_pillar']
+    month_stem_idx = CHEONGAN.index(month_pillar['stem'])
+    month_branch_idx = JIJI.index(month_pillar['branch'])
+
+    step = 1 if direction == '순행' else -1
+
+    # 용신/기신 정보
+    oa = saju_result['ohaeng_analysis']
+    yongsin_ohaeng = oa['yongsin']['yongsin']
+    huisin_ohaeng = oa['yongsin'].get('huisin', '')
+
+    # 사주 원국 지지 목록 (충 판별용)
+    original_branches = []
+    for pk in ['year_pillar', 'month_pillar', 'day_pillar', 'hour_pillar']:
+        p = saju_result.get(pk)
+        if p:
+            original_branches.append(p['branch'])
+
+    periods = []
+    current_age = date.today().year - birth_year
+
+    for i in range(8):
+        s_idx = (month_stem_idx + step * (i + 1)) % 10
+        b_idx = (month_branch_idx + step * (i + 1)) % 12
+        age_start = start_age + i * 10
+        age_end = age_start + 9
+
+        stem = CHEONGAN[s_idx]
+        branch = JIJI[b_idx]
+        stem_ohaeng = CHEONGAN_OHAENG[s_idx]
+        branch_ohaeng = JIJI_OHAENG[b_idx]
+
+        # 전환점 판별
+        is_turning_point = False
+        turning_reason = ''
+
+        # 충(沖) 체크
+        chung_target = JIJI_CHUNG.get(branch, '')
+        for ob in original_branches:
+            if ob == chung_target:
+                is_turning_point = True
+                turning_reason = f'대운 {branch}({JIJI_KR[b_idx]})이 사주 원국 {ob}와 충(沖)'
+                break
+
+        # 용신 오행 체크
+        if stem_ohaeng == yongsin_ohaeng or branch_ohaeng == yongsin_ohaeng:
+            if not is_turning_point:
+                turning_reason = f'용신 {yongsin_ohaeng}({OHAENG_KR[yongsin_ohaeng]})의 기운이 들어오는 좋은 시기'
+            is_turning_point = True
+
+        # 기신(忌神) 체크 — 용신의 반대
+        gisin_ohaeng = ''
+        for k, v in OHAENG_SANGGEUK.items():
+            if v == yongsin_ohaeng:
+                gisin_ohaeng = k
+                break
+        if gisin_ohaeng and (stem_ohaeng == gisin_ohaeng or branch_ohaeng == gisin_ohaeng):
+            if not turning_reason:
+                turning_reason = f'기신 {gisin_ohaeng}({OHAENG_KR[gisin_ohaeng]})의 기운으로 주의가 필요한 시기'
+            is_turning_point = True
+
+        period = {
+            'index': i,
+            'age_start': age_start,
+            'age_end': age_end,
+            'stem': stem,
+            'branch': branch,
+            'stem_kr': CHEONGAN_KR[s_idx],
+            'branch_kr': JIJI_KR[b_idx],
+            'stem_ohaeng': stem_ohaeng,
+            'branch_ohaeng': branch_ohaeng,
+            'ganji': stem + branch,
+            'ganji_kr': CHEONGAN_KR[s_idx] + JIJI_KR[b_idx],
+            'is_turning_point': is_turning_point,
+            'turning_reason': turning_reason,
+        }
+        periods.append(period)
+
+    # 현재 대운 찾기
+    current_period = None
+    for p in periods:
+        if p['age_start'] <= current_age <= p['age_end']:
+            current_period = p
+            break
+    if not current_period and periods:
+        current_period = periods[0]
+
+    # 과거/미래 전환점 분리
+    past_turning = [p for p in periods if p['is_turning_point'] and p['age_end'] < current_age]
+    future_turning = [p for p in periods if p['is_turning_point'] and p['age_start'] > current_age]
+
+    return {
+        'direction': direction,
+        'start_age': start_age,
+        'periods': periods,
+        'current_period': current_period,
+        'past_turning_points': past_turning,
+        'future_turning_points': future_turning,
+        'current_age': current_age,
+    }
