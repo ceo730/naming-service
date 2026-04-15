@@ -1486,10 +1486,20 @@ function renderReport(report) {
     document.getElementById('reportArea').innerHTML = html;
 }
 
+// ─── HTML 엔티티 이스케이프 (XSS 방지) ───
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 // ─── 간단한 마크다운 → HTML 변환 ───
 function simpleMarkdown(text) {
     if (!text) return '';
-    let html = text
+    // 먼저 HTML 태그를 이스케이프하여 XSS 방지
+    let html = escapeHtml(text);
+    // 이스케이프된 텍스트에서 마크다운 변환
+    html = html
         .replace(/### (.*?)$/gm, '<h3>$1</h3>')
         .replace(/## (.*?)$/gm, '<h2>$1</h2>')
         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
@@ -1498,7 +1508,7 @@ function simpleMarkdown(text) {
         .replace(/\n/g, '<br>');
 
     // p 태그 감싸기
-    if (!html.startsWith('<h') && !html.startsWith('<p>')) {
+    if (!html.startsWith('<h') && !html.startsWith('&lt;h') && !html.startsWith('<p>')) {
         html = '<p>' + html + '</p>';
     }
 

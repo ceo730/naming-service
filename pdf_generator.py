@@ -57,9 +57,37 @@ class NamingReportPDF(FPDF):
             self.add_font('Gothic', '', os.path.join(font_dir, 'malgun.ttf'))
             self.add_font('Gothic', 'B', os.path.join(font_dir, 'malgunbd.ttf'))
         else:
+            # 프로젝트 내 fonts 디렉토리 우선, 없으면 시스템 폰트 경로 시도
             fonts_dir = os.path.join(BASE_DIR, 'fonts')
-            self.add_font('Gothic', '', os.path.join(fonts_dir, 'NanumGothic-Regular.ttf'))
-            self.add_font('Gothic', 'B', os.path.join(fonts_dir, 'NanumGothic-Bold.ttf'))
+            candidates = [
+                fonts_dir,
+                '/usr/share/fonts/truetype/nanum',
+                '/usr/share/fonts/nanum',
+                os.path.expanduser('~/.local/share/fonts'),
+            ]
+            font_dir = None
+            for d in candidates:
+                if os.path.isdir(d) and any(f.endswith('.ttf') for f in os.listdir(d)):
+                    font_dir = d
+                    break
+            if not font_dir:
+                raise FileNotFoundError(
+                    f"한글 폰트를 찾을 수 없습니다. '{fonts_dir}'에 NanumGothic-Regular.ttf를 배치하거나 "
+                    "'apt install fonts-nanum'으로 시스템 폰트를 설치하세요."
+                )
+            # 나눔고딕 또는 맑은고딕 자동 탐색
+            regular = None
+            bold = None
+            for f in os.listdir(font_dir):
+                fl = f.lower()
+                if 'nanumgothic' in fl and 'bold' not in fl and fl.endswith('.ttf'):
+                    regular = os.path.join(font_dir, f)
+                elif 'nanumgothic' in fl and 'bold' in fl and fl.endswith('.ttf'):
+                    bold = os.path.join(font_dir, f)
+            if not regular:
+                raise FileNotFoundError(f"NanumGothic 폰트를 '{font_dir}'에서 찾을 수 없습니다.")
+            self.add_font('Gothic', '', regular)
+            self.add_font('Gothic', 'B', bold or regular)
 
     def header(self):
         if self._prose_mode:

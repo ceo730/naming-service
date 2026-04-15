@@ -15,6 +15,10 @@ from saju_engine import calculate_sipsin, calculate_daeun, SIPSIN_TRAITS
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 MODEL = "gpt-4o"
 
+if not OPENAI_API_KEY:
+    import logging
+    logging.getLogger(__name__).warning("OPENAI_API_KEY가 설정되지 않았습니다. 보고서 생성이 실패합니다.")
+
 client = openai.OpenAI(api_key=OPENAI_API_KEY)
 
 # ─── 안정적 API 호출 (재시도 + 딜레이) ───

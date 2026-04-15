@@ -81,6 +81,108 @@ JIJI_HYEONG = {
 }
 
 
+# ─── 천간합(天干合) ───
+CHEONGAN_HAP = {
+    '甲': '己', '己': '甲',  # 甲己合 → 土
+    '乙': '庚', '庚': '乙',  # 乙庚合 → 金
+    '丙': '辛', '辛': '丙',  # 丙辛合 → 水
+    '丁': '壬', '壬': '丁',  # 丁壬合 → 木
+    '戊': '癸', '癸': '戊',  # 戊癸合 → 火
+}
+CHEONGAN_HAP_OHAENG = {
+    ('甲', '己'): '土', ('己', '甲'): '土',
+    ('乙', '庚'): '金', ('庚', '乙'): '金',
+    ('丙', '辛'): '水', ('辛', '丙'): '水',
+    ('丁', '壬'): '木', ('壬', '丁'): '木',
+    ('戊', '癸'): '火', ('癸', '戊'): '火',
+}
+
+# ─── 지지육합(地支六合) ───
+JIJI_YUKHAP = {
+    '子': ('丑', '土'), '丑': ('子', '土'),
+    '寅': ('亥', '木'), '亥': ('寅', '木'),
+    '卯': ('戌', '火'), '戌': ('卯', '火'),
+    '辰': ('酉', '金'), '酉': ('辰', '金'),
+    '巳': ('申', '水'), '申': ('巳', '水'),
+    '午': ('未', '火'), '未': ('午', '火'),
+}
+
+# ─── 지지삼합(地支三合) ───
+JIJI_SAMHAP = [
+    ({'申', '子', '辰'}, '水'),  # 申子辰 → 水局
+    ({'亥', '卯', '未'}, '木'),  # 亥卯未 → 木局
+    ({'寅', '午', '戌'}, '火'),  # 寅午戌 → 火局
+    ({'巳', '酉', '丑'}, '金'),  # 巳酉丑 → 金局
+]
+
+
+def check_hap_relations(saju_result):
+    """사주 내 합(合) 관계 분석"""
+    relations = []
+
+    # 천간 수집
+    stems = []
+    for pk in ['year_pillar', 'month_pillar', 'day_pillar', 'hour_pillar']:
+        p = saju_result.get(pk)
+        if p:
+            stems.append((pk.replace('_pillar', ''), p['stem']))
+
+    # 천간합 검사
+    for i in range(len(stems)):
+        for j in range(i + 1, len(stems)):
+            s1_name, s1 = stems[i]
+            s2_name, s2 = stems[j]
+            if CHEONGAN_HAP.get(s1) == s2:
+                hap_oh = CHEONGAN_HAP_OHAENG.get((s1, s2), '')
+                relations.append({
+                    'type': '천간합',
+                    'pair': f'{s1}{s2}',
+                    'positions': f'{s1_name}간-{s2_name}간',
+                    'result_ohaeng': hap_oh,
+                    'desc': f'{s1}{s2}합({OHAENG_KR.get(hap_oh, "")})',
+                })
+
+    # 지지 수집
+    branches = []
+    for pk in ['year_pillar', 'month_pillar', 'day_pillar', 'hour_pillar']:
+        p = saju_result.get(pk)
+        if p:
+            branches.append((pk.replace('_pillar', ''), p['branch']))
+
+    branch_set = {b for _, b in branches}
+
+    # 지지육합 검사
+    for i in range(len(branches)):
+        for j in range(i + 1, len(branches)):
+            b1_name, b1 = branches[i]
+            b2_name, b2 = branches[j]
+            yukhap = JIJI_YUKHAP.get(b1)
+            if yukhap and yukhap[0] == b2:
+                relations.append({
+                    'type': '지지육합',
+                    'pair': f'{b1}{b2}',
+                    'positions': f'{b1_name}지-{b2_name}지',
+                    'result_ohaeng': yukhap[1],
+                    'desc': f'{b1}{b2}합({OHAENG_KR.get(yukhap[1], "")})',
+                })
+
+    # 지지삼합 검사
+    for samhap_set, result_oh in JIJI_SAMHAP:
+        found = branch_set & samhap_set
+        if len(found) >= 2:
+            found_names = [f'{n}지({b})' for n, b in branches if b in found]
+            is_full = len(found) == 3
+            relations.append({
+                'type': '지지삼합' if is_full else '지지반합',
+                'pair': ''.join(sorted(found)),
+                'positions': ', '.join(found_names),
+                'result_ohaeng': result_oh,
+                'desc': f"{''.join(sorted(found))}{'삼합' if is_full else '반합'}({OHAENG_KR.get(result_oh, '')}국)",
+            })
+
+    return relations
+
+
 def check_chung_conflict(day_branch, hanja_list):
     """
     사주 일주 지지와 충이 되는 한자 검출
@@ -159,9 +261,20 @@ def _calc_jeolgi_day(year, solar_month, c_21, c_20):
     return day
 
 
+# 절기 보정 테이블 (寿星공식 오차 보정, 실측 천문력 기반)
+# 입춘(index 0): 21세기 윤년(4의 배수)에서 공식이 2/3을 산출하나 실제로는 2/4
+_JEOLGI_OVERRIDES = {}
+for _y in range(2000, 2052, 4):
+    _JEOLGI_OVERRIDES[(_y, 0)] = 4
+
+
 def get_jeolgi_date(year, jeolgi_index):
     """특정 년도의 절기 날짜 반환 (월, 일). jeolgi_index: 0=입춘, ..., 11=소한"""
-    solar_month, c_21, c_20 = _JEOLGI_C[jeolgi_index]
+    override = _JEOLGI_OVERRIDES.get((year, jeolgi_index))
+    solar_month = _JEOLGI_C[jeolgi_index][0]
+    if override is not None:
+        return solar_month, override
+    _, c_21, c_20 = _JEOLGI_C[jeolgi_index]
     day = _calc_jeolgi_day(year, solar_month, c_21, c_20)
     return solar_month, day
 
@@ -258,6 +371,9 @@ def calculate_saju(birth_year, birth_month, birth_day, birth_hour=None, birth_mi
 
     # ─── 일주 (Day Pillar) ───
     jdn = calc_jdn(birth_year, birth_month, birth_day)
+    # 야자시(夜子時) 보정: 23:00~23:59 출생은 다음날 子時에 해당하므로 일주를 +1일
+    if birth_hour is not None and birth_hour >= 23:
+        jdn += 1
     day_ganji_idx = (jdn - 2451545 + 54) % 60
     day_stem_idx = day_ganji_idx % 10
     day_branch_idx = day_ganji_idx % 12
@@ -403,9 +519,10 @@ def determine_yongsin(ilgan_ohaeng, ohaeng_count, janggan_count):
             controlled_by = k
             break
 
-    oppose_score = ohaeng_count.get(controlled_element, 0) + ohaeng_count.get(controlling_element, 0)
+    oppose_score = (ohaeng_count.get(controlled_element, 0) + janggan_count.get(controlled_element, 0) * 0.5 +
+                    ohaeng_count.get(controlling_element, 0) + janggan_count.get(controlling_element, 0) * 0.5)
     if controlled_by:
-        oppose_score += ohaeng_count.get(controlled_by, 0)
+        oppose_score += ohaeng_count.get(controlled_by, 0) + janggan_count.get(controlled_by, 0) * 0.5
 
     total = sum(ohaeng_count.values())
     is_strong = support_score > total * 0.4
@@ -751,7 +868,7 @@ def calculate_sipsin(saju_result):
         sipsin_count[sipsin] += 1
         sipsin_detail.append({'position': pos_name, 'char': stem, 'sipsin': sipsin, 'ohaeng': t_ohaeng})
 
-    # 지지 분석 (년지, 월지, 일지, 시지)
+    # 지지 분석 (년지, 월지, 일지, 시지) — 본기 장간의 음양을 사용
     branch_positions = [
         ('year_pillar', '년지'),
         ('month_pillar', '월지'),
@@ -765,7 +882,10 @@ def calculate_sipsin(saju_result):
         branch = p['branch']
         branch_idx = JIJI.index(branch)
         t_ohaeng = JIJI_OHAENG[branch_idx]
-        t_eumyang = JIJI_EUMYANG[branch_idx]
+        # 본기 장간(첫 번째 장간)의 음양을 사용 (표준 명리학 기준)
+        main_janggan = JIJI_JANGGAN[branch][0]
+        jg_idx = CHEONGAN.index(main_janggan)
+        t_eumyang = CHEONGAN_EUMYANG[jg_idx]
         sipsin = _get_sipsin(ilgan_ohaeng, ilgan_eumyang, t_ohaeng, t_eumyang)
         sipsin_count[sipsin] += 1
         sipsin_detail.append({'position': pos_name, 'char': branch, 'sipsin': sipsin, 'ohaeng': t_ohaeng})

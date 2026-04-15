@@ -51,6 +51,7 @@ def get_surname_strokes(surname):
     if strokes is None:
         logger.warning(f"미등록 성씨 '{surname}': 획수를 DB에서 조회합니다")
         # DB에서 동명 한자 중 가장 일반적인 획수로 폴백
+        conn = None
         try:
             conn = sqlite3.connect(DB_PATH)
             cursor = conn.cursor()
@@ -59,11 +60,13 @@ def get_surname_strokes(surname):
                 (surname,)
             )
             row = cursor.fetchone()
-            conn.close()
             if row:
                 return row[0]
         except Exception:
             pass
+        finally:
+            if conn:
+                conn.close()
         logger.warning(f"미등록 성씨 '{surname}': DB에도 없어 기본값 8 사용")
         return 8
     return strokes
@@ -449,7 +452,7 @@ WELL_KNOWN_HANJA = {
     '지': ['智', '志', '知', '芝'],
     '건': ['健', '建', '乾'],
     '승': ['承', '升', '昇', '勝'],
-    '혁': ['赫', '奕', '爀'],
+    '혁': ['赫', '爀'],
     '찬': ['燦', '璨', '讚'],
     '연': ['然', '延', '淵', '妍', '衍'],
     '규': ['奎', '圭', '珪'],
@@ -608,25 +611,28 @@ def evaluate_eumyang_strokes(surname_strokes, name_chars):
 def find_hanja_for_reading(reading_kr, ohaeng_list=None, min_strokes=3, max_strokes=20):
     """특정 음(한글)에 대해 한자 후보 조회 + 점수 매기기"""
     conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
+    try:
+        cursor = conn.cursor()
 
-    query = """
-        SELECT h.hanja, h.hangul, h.meaning, h.total_strokes, h.ohaeng, h.jawon_ohaeng
-        FROM hanja h
-        WHERE h.hangul LIKE ?
-        AND h.total_strokes BETWEEN ? AND ?
-        AND h.meaning IS NOT NULL AND h.meaning != ''
-    """
-    params = [f'%{reading_kr}%', min_strokes, max_strokes]
+        query = """
+            SELECT h.hanja, h.hangul, h.meaning, h.total_strokes, h.ohaeng, h.jawon_ohaeng
+            FROM hanja h
+            WHERE (h.hangul = ? OR h.hangul LIKE ? OR h.hangul LIKE ? OR h.hangul LIKE ?)
+            AND h.total_strokes BETWEEN ? AND ?
+            AND h.meaning IS NOT NULL AND h.meaning != ''
+        """
+        params = [reading_kr, f'{reading_kr},%', f'%,{reading_kr}', f'%,{reading_kr},%',
+                  min_strokes, max_strokes]
 
-    if ohaeng_list:
-        placeholders = ','.join(['?' for _ in ohaeng_list])
-        query += f" AND h.ohaeng IN ({placeholders})"
-        params.extend(ohaeng_list)
+        if ohaeng_list:
+            placeholders = ','.join(['?' for _ in ohaeng_list])
+            query += f" AND h.ohaeng IN ({placeholders})"
+            params.extend(ohaeng_list)
 
-    cursor.execute(query, params)
-    results = cursor.fetchall()
-    conn.close()
+        cursor.execute(query, params)
+        results = cursor.fetchall()
+    finally:
+        conn.close()
 
     candidates = []
     for row in results:
@@ -780,6 +786,7 @@ def generate_names(surname, gender, saju_result, preferences=None, count=3):
                         continue
                     ph_score, ph_detail = evaluate_phonetics(surname, [h1['hangul']])
                     eumryeong_score, eumryeong_detail, eumryeong_flow = evaluate_eumryeong_ohaeng(surname, [h1['hangul']])
+                    jawon_score, jawon_detail, jawon_flow = evaluate_jawon_ohaeng_flow(surname, [h1])
                     oh_bonus = 8 if (oh1 and h1['ohaeng'] in oh1) else 0
                     chung_warnings = check_chung_conflict(day_branch, [h1['hanja']])
                     chung_penalty = -15 * len(chung_warnings)
@@ -787,16 +794,18 @@ def generate_names(surname, gender, saju_result, preferences=None, count=3):
                     hyeong_penalty = -10 * len(hyeong_warnings)
                     ey_bonus, ey_pattern = evaluate_eumyang_strokes(surname_strokes, [h1])
                     total = (
-                        h1['score'] * 0.3 +
+                        h1['score'] * 0.25 +
                         suri['total_score'] * 0.25 +
-                        ph_score * 0.20 +
-                        eumryeong_score * 0.25 +
+                        ph_score * 0.15 +
+                        eumryeong_score * 0.20 +
+                        jawon_score * 0.15 +
                         oh_bonus + chung_penalty + hyeong_penalty + ey_bonus
                     )
                     name_candidates.append(_build_candidate(
                         surname, [h1], suri, ph_score, ph_detail, total,
                         eumryeong_score, eumryeong_detail, eumryeong_flow,
-                        0, '', '', chung_warnings, hyeong_warnings, ey_pattern
+                        jawon_score, jawon_detail, jawon_flow,
+                        chung_warnings, hyeong_warnings, ey_pattern
                     ))
                 continue
 
@@ -856,7 +865,7 @@ def generate_names(surname, gender, saju_result, preferences=None, count=3):
 
                     # 점수 공식:
                     # h1(0.15) + h2(0.15) + suri(0.20) + phonetics(0.15)
-                    # + eumryeong(0.20) + jawon_flow(0.10)
+                    # + eumryeong(0.20) + jawon_flow(0.15)
                     # + oh_bonus + chung_penalty + hyeong_penalty + ey_bonus
                     total = (
                         h1['score'] * 0.15 +
@@ -864,7 +873,7 @@ def generate_names(surname, gender, saju_result, preferences=None, count=3):
                         suri['total_score'] * 0.20 +
                         ph_score * 0.15 +
                         eumryeong_score * 0.20 +
-                        jawon_score * 0.10 +
+                        jawon_score * 0.15 +
                         oh_bonus + chung_penalty + hyeong_penalty + ey_bonus
                     )
 
@@ -1019,16 +1028,18 @@ def _get_meaning_summary(name_info):
 
 def lookup_hanja_detail(hanja_char):
     conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("""
-        SELECT hanja, hangul, meaning, total_strokes, ohaeng, jawon_ohaeng
-        FROM hanja WHERE hanja = ?
-    """, (hanja_char,))
-    row = cursor.fetchone()
-    conn.close()
-    if row:
-        return {
-            'hanja': row[0], 'hangul': row[1], 'meaning': row[2],
-            'strokes': row[3], 'ohaeng': row[4], 'jawon_ohaeng': row[5],
-        }
-    return None
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT hanja, hangul, meaning, total_strokes, ohaeng, jawon_ohaeng
+            FROM hanja WHERE hanja = ?
+        """, (hanja_char,))
+        row = cursor.fetchone()
+        if row:
+            return {
+                'hanja': row[0], 'hangul': row[1], 'meaning': row[2],
+                'strokes': row[3], 'ohaeng': row[4], 'jawon_ohaeng': row[5],
+            }
+        return None
+    finally:
+        conn.close()

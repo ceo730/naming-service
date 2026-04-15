@@ -24,6 +24,8 @@ def api_generate():
     """이름 생성 + 보고서 생성 API"""
     try:
         data = request.get_json()
+        if not data:
+            return jsonify({'error': '요청 데이터가 없습니다.'}), 400
 
         # 필수 데이터 파싱
         surname = data.get('surname', '').strip()
@@ -158,16 +160,25 @@ def api_report():
     """보고서 생성 API (SSE 스트리밍)"""
     try:
         data = request.get_json()
+        if not data:
+            return jsonify({'error': '요청 데이터가 없습니다.'}), 400
 
         surname = data.get('surname', '').strip()
         gender = data.get('gender', '남')
         birth_date = data.get('birth_date', '')
         birth_time = data.get('birth_time', '')
 
+        if not surname or not birth_date:
+            return jsonify({'error': '성씨와 생년월일은 필수입니다.'}), 400
+
         parts = birth_date.split('-')
+        if len(parts) != 3:
+            return jsonify({'error': '생년월일 형식이 올바르지 않습니다. (YYYY-MM-DD)'}), 400
         birth_year = int(parts[0])
         birth_month = int(parts[1])
         birth_day = int(parts[2])
+        if not (1900 <= birth_year <= 2100 and 1 <= birth_month <= 12 and 1 <= birth_day <= 31):
+            return jsonify({'error': '생년월일 값이 유효하지 않습니다.'}), 400
 
         birth_hour = None
         birth_minute = 0
@@ -224,6 +235,8 @@ def api_report():
 def api_report_stream():
     """보고서 생성 SSE 스트리밍 API"""
     data = request.get_json()
+    if not data:
+        return jsonify({'error': '요청 데이터가 없습니다.'}), 400
 
     def generate():
         try:
@@ -232,10 +245,20 @@ def api_report_stream():
             birth_date = data.get('birth_date', '')
             birth_time = data.get('birth_time', '')
 
+            if not surname or not birth_date:
+                yield f"data: {json.dumps({'type': 'error', 'message': '성씨와 생년월일은 필수입니다.'}, ensure_ascii=False)}\n\n"
+                return
+
             parts = birth_date.split('-')
+            if len(parts) != 3:
+                yield f"data: {json.dumps({'type': 'error', 'message': '생년월일 형식이 올바르지 않습니다.'}, ensure_ascii=False)}\n\n"
+                return
             birth_year = int(parts[0])
             birth_month = int(parts[1])
             birth_day = int(parts[2])
+            if not (1900 <= birth_year <= 2100 and 1 <= birth_month <= 12 and 1 <= birth_day <= 31):
+                yield f"data: {json.dumps({'type': 'error', 'message': '생년월일 값이 유효하지 않습니다.'}, ensure_ascii=False)}\n\n"
+                return
 
             birth_hour = None
             birth_minute = 0
@@ -253,10 +276,16 @@ def api_report_stream():
                 # 프론트엔드에서 전달받은 이름 정보로 재구성
                 names = reconstruct_names(names_data, surname, saju_result)
             else:
+                preferences = {
+                    'name_length': int(data.get('name_length', 2)),
+                    'birth_year': birth_year,
+                    'request_type': data.get('request_type', '신생아 작명'),
+                }
                 names = generate_names(
                     surname=surname,
                     gender=gender,
                     saju_result=saju_result,
+                    preferences=preferences,
                     count=3
                 )
 
@@ -404,4 +433,5 @@ def serialize_saju(saju_result, sipsin_result=None, daeun_result=None):
 
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000, host='0.0.0.0')
+    import os
+    app.run(debug=os.environ.get('FLASK_DEBUG', '').lower() == 'true', port=5000, host='0.0.0.0')
