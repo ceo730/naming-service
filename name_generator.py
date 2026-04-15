@@ -11,6 +11,9 @@ import sqlite3
 import os
 import re
 import random
+import logging
+
+logger = logging.getLogger(__name__)
 
 from saju_engine import (
     OHAENG_LIST, OHAENG_KR, OHAENG_SANGSAENG,
@@ -44,7 +47,26 @@ SURNAME_STROKES = {
 }
 
 def get_surname_strokes(surname):
-    return SURNAME_STROKES.get(surname, 8)
+    strokes = SURNAME_STROKES.get(surname)
+    if strokes is None:
+        logger.warning(f"미등록 성씨 '{surname}': 획수를 DB에서 조회합니다")
+        # DB에서 동명 한자 중 가장 일반적인 획수로 폴백
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT total_strokes FROM hanja WHERE hangul=? ORDER BY total_strokes LIMIT 1",
+                (surname,)
+            )
+            row = cursor.fetchone()
+            conn.close()
+            if row:
+                return row[0]
+        except Exception:
+            pass
+        logger.warning(f"미등록 성씨 '{surname}': DB에도 없어 기본값 8 사용")
+        return 8
+    return strokes
 
 
 # ═══════════════════════════════════════════════════════
@@ -466,22 +488,22 @@ WELL_KNOWN_HANJA = {
 # '-' 표기된 성씨는 부수가 명확하지 않아 발음오행(초성 오행)으로 폴백
 SURNAME_JAWON_OHAENG = {
     '김': '金', '이': '木', '박': '木', '최': '土', '정': '土',
-    '강': '土', '조': '火', '윤': '火', '장': '火', '임': '木',
-    '한': '土', '오': '土', '서': '金', '신': '金', '홍': '水',
+    '강': '土', '조': '火', '윤': '火', '장': '木', '임': '木',
+    '한': '土', '오': '土', '서': '金', '신': '土', '홍': '水',
     '권': '木', '황': '土', '안': '土', '송': '木', '류': '木',
-    '유': '水', '전': '金', '고': '木', '문': '火', '양': '木',
+    '유': '金', '전': '金', '고': '木', '문': '火', '양': '木',
     '손': '金', '배': '火', '백': '金', '허': '土', '남': '火',
-    '심': '水', '노': '火', '하': '水', '곽': '土', '성': '火',
-    '차': '火', '주': '火', '우': '土', '구': '金', '민': '水',
-    '나': '火', '진': '土', '지': '土', '엄': '土', '원': '水',
+    '심': '水', '노': '火', '하': '水', '곽': '土', '성': '金',
+    '차': '火', '주': '木', '우': '土', '구': '金', '민': '水',
+    '나': '木', '진': '土', '지': '水', '엄': '土', '원': '水',
     '천': '金', '방': '水', '공': '木', '현': '水', '함': '水',
-    '변': '水', '염': '火', '석': '金', '선': '金', '설': '金',
+    '변': '水', '염': '火', '석': '土', '선': '金', '설': '木',
     '마': '水', '길': '土', '연': '火', '위': '土', '표': '水',
-    '명': '火', '기': '木', '반': '金', '왕': '土', '금': '金',
+    '명': '火', '기': '木', '반': '水', '왕': '土', '금': '金',
     '옥': '土', '육': '土', '인': '木', '맹': '水', '제': '火',
     '모': '水', '탁': '水', '국': '木', '여': '火', '도': '土',
-    '소': '金', '추': '金', '복': '水', '태': '火', '봉': '水',
-    '피': '水', '두': '火', '감': '水', '경': '木', '뢰': '火',
+    '소': '木', '추': '木', '복': '水', '태': '火', '봉': '水',
+    '피': '水', '두': '木', '감': '水', '경': '火', '뢰': '火',
     '사': '金', '승': '火', '상': '金', '어': '水', '은': '金',
 }
 
@@ -666,13 +688,16 @@ def find_hanja_for_reading(reading_kr, ohaeng_list=None, min_strokes=3, max_stro
     return candidates
 
 
-# 한자 후보 캐시
+# 한자 후보 캐시 (최대 500 항목)
 _hanja_cache = {}
+_HANJA_CACHE_MAX = 500
 
 def get_best_hanja(reading_kr, ohaeng_list):
     """읽기+오행 조합에 대한 최적 한자 (캐시 사용)"""
     cache_key = (reading_kr, tuple(ohaeng_list))
     if cache_key not in _hanja_cache:
+        if len(_hanja_cache) >= _HANJA_CACHE_MAX:
+            _hanja_cache.clear()
         _hanja_cache[cache_key] = find_hanja_for_reading(reading_kr, ohaeng_list)
     return _hanja_cache[cache_key]
 

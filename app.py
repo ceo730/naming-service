@@ -35,11 +35,15 @@ def api_generate():
         if not surname or not birth_date:
             return jsonify({'error': '성씨와 생년월일은 필수입니다.'}), 400
 
-        # 생년월일 파싱
+        # 생년월일 파싱 및 검증
         parts = birth_date.split('-')
+        if len(parts) != 3:
+            return jsonify({'error': '생년월일 형식이 올바르지 않습니다. (YYYY-MM-DD)'}), 400
         birth_year = int(parts[0])
         birth_month = int(parts[1])
         birth_day = int(parts[2])
+        if not (1900 <= birth_year <= 2100 and 1 <= birth_month <= 12 and 1 <= birth_day <= 31):
+            return jsonify({'error': '생년월일 값이 유효하지 않습니다.'}), 400
 
         # 출생시간 파싱
         birth_hour = None
@@ -64,7 +68,7 @@ def api_generate():
         preferences = {
             'name_length': int(data.get('name_length', 2)),
             'desired_image': data.get('desired_image', []),
-            'preferred_style': data.get('preferred_style', '한자 이름'),
+            'preferred_style': ', '.join(data.get('preferred_style', [])) if isinstance(data.get('preferred_style'), list) else data.get('preferred_style', '한자 이름'),
             'avoid_feeling': data.get('avoid_feeling', ''),
             'dollimja': data.get('dollimja', ''),
             'birth_year': birth_year,
@@ -92,7 +96,7 @@ def api_generate():
             'request_type': request_type,
             'considerations': ', '.join(data.get('considerations', [])) or '없음',
             'desired_image': ', '.join(data.get('desired_image', [])) or '없음',
-            'preferred_style': ', '.join(data.get('preferred_style', [])) or '없음',
+            'preferred_style': ', '.join(data.get('preferred_style', [])) if isinstance(data.get('preferred_style'), list) else data.get('preferred_style', '없음'),
             'avoid_feeling': data.get('avoid_feeling', '없음'),
             'birth_place': data.get('birth_place', ''),
             'current_name': data.get('current_name', ''),
@@ -199,7 +203,7 @@ def api_report():
             'request_type': data.get('request_type', '신생아 작명'),
             'considerations': ', '.join(data.get('considerations', [])) or '없음',
             'desired_image': ', '.join(data.get('desired_image', [])) or '없음',
-            'preferred_style': ', '.join(data.get('preferred_style', [])) or '없음',
+            'preferred_style': ', '.join(data.get('preferred_style', [])) if isinstance(data.get('preferred_style'), list) else data.get('preferred_style', '없음'),
             'avoid_feeling': data.get('avoid_feeling', '없음'),
         }
 
@@ -264,7 +268,7 @@ def api_report_stream():
                 'request_type': data.get('request_type', '신생아 작명'),
                 'considerations': ', '.join(data.get('considerations', [])) or '없음',
                 'desired_image': ', '.join(data.get('desired_image', [])) or '없음',
-                'preferred_style': ', '.join(data.get('preferred_style', [])) or '없음',
+                'preferred_style': ', '.join(data.get('preferred_style', [])) if isinstance(data.get('preferred_style'), list) else data.get('preferred_style', '없음'),
                 'avoid_feeling': data.get('avoid_feeling', '없음'),
             }
 
